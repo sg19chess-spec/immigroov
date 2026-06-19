@@ -26,6 +26,10 @@ export default function MentorPage({ params }: { params: { id: string } }) {
   const [msg, setMsg] = useState<{ t: string; ok: boolean } | null>(null);
   const [busy, setBusy] = useState(false);
   const [loadingSlots, setLoadingSlots] = useState(false);
+  const [hasSession, setHasSession] = useState(false);
+  const [guest, setGuest] = useState({ name: "", email: "" });
+
+  useEffect(() => { supabase.auth.getUser().then(({ data }) => setHasSession(!!data.user && !data.user.is_anonymous)); }, [supabase]);
 
   useEffect(() => {
     (async () => {
@@ -59,16 +63,21 @@ export default function MentorPage({ params }: { params: { id: string } }) {
 
   async function book() {
     if (!svc || !slot) return;
-    setBusy(true); setMsg(null);
-    const { data: u } = await supabase.auth.getUser();
-    if (!u.user) { const { error } = await supabase.auth.signInAnonymously(); if (error) { setMsg({ t: "Could not start a session: " + error.message, ok: false }); setBusy(false); return; } }
     const f = await fx(svc.set_currency || "USD", mc);
     const cost = (svc.total || 0) * f.rate;
     const ans = questions.map((q) => ({ question_id: q.id, answer_text: answers[q.id] || "" }));
-    const { error } = await supabase.rpc("book_session", { p_mentor_id: mentorId, p_service_id: svc.id, p_slot_time: slot, p_mentee_currency: mc, p_mentee_cost: cost, p_answers: ans, p_timezone: tz });
+    setBusy(true); setMsg(null);
+    const { data: u } = await supabase.auth.getUser();
+    let error: any;
+    if (u.user && !u.user.is_anonymous) {
+      ({ error } = await supabase.rpc("book_session", { p_mentor_id: mentorId, p_service_id: svc.id, p_slot_time: slot, p_mentee_currency: mc, p_mentee_cost: cost, p_answers: ans, p_timezone: tz }));
+    } else {
+      if (!guest.email.includes("@")) { setMsg({ t: "Please enter a valid email so we can send your confirmation.", ok: false }); setBusy(false); return; }
+      ({ error } = await supabase.rpc("book_session_guest", { p_mentor_id: mentorId, p_service_id: svc.id, p_slot_time: slot, p_mentee_currency: mc, p_mentee_cost: cost, p_email: guest.email, p_name: guest.name || null, p_timezone: tz, p_answers: ans }));
+    }
     setBusy(false);
     if (error) { setMsg({ t: error.message, ok: false }); return; }
-    setMsg({ t: `Booked! ${fmtDate(slot, tz)}, ${fmtTime(slot, tz)} (your time). See "My sessions".`, ok: true });
+    setMsg({ t: `Booked for ${fmtDate(slot, tz)}, ${fmtTime(slot, tz)} (your time). ${hasSession ? 'See "My sessions".' : `A confirmation was sent to ${guest.email}.`}`, ok: true });
     setSlot(null); pickService(svc);
   }
 
@@ -183,10 +192,19 @@ export default function MentorPage({ params }: { params: { id: string } }) {
                   ))}
                 </div>
               )}
-              <button className="btn-cta btn-lg" style={{ width: "100%", marginTop: 16 }} disabled={!slot || busy || reqMissing} onClick={book}>
+              {slot && !hasSession && (
+                <div style={{ marginTop: 16, paddingTop: 14, borderTop: "1px solid var(--line)" }}>
+                  <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 8 }}>Booking as a guest</div>
+                  <label className="fld">Your name</label>
+                  <input value={guest.name} onChange={(e) => setGuest({ ...guest, name: e.target.value })} placeholder="Optional" style={{ width: "100%", marginBottom: 10 }} />
+                  <label className="fld">Email — we'll send your confirmation here *</label>
+                  <input type="email" value={guest.email} onChange={(e) => setGuest({ ...guest, email: e.target.value })} placeholder="you@email.com" style={{ width: "100%" }} />
+                </div>
+              )}
+              <button className="btn-cta btn-lg" style={{ width: "100%", marginTop: 16 }} disabled={!slot || busy || reqMissing || (!hasSession && !guest.email.includes("@"))} onClick={book}>
                 {busy ? "Booking…" : !slot ? "Select a time" : "Confirm booking"}
               </button>
-              <div className="faint" style={{ fontSize: 11, textAlign: "center", marginTop: 8 }}>You can cancel anytime · mock payment</div>
+              <div className="faint" style={{ fontSize: 11, textAlign: "center", marginTop: 8 }}>You can cancel anytime · mock payment · confirmation emailed</div>
             </>
           )}
         </div>
