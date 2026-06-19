@@ -34,13 +34,16 @@ export default function Home() {
       <section className="hero">
         <h1>Find your immigration mentor</h1>
         <p>Book a 1:1 video session with vetted experts — in your language, timezone, and currency.</p>
+        <div className="trust"><span>★ Vetted mentors</span><span>Pay in your currency</span><span>Instant video booking</span></div>
       </section>
       <div className="container">
         <h2 className="sec">Available mentors</h2>
-        {loading ? <p className="muted">Loading…</p> : (
+        {loading ? (
+          <div className="grid">{[0,1,2].map((i) => <div key={i} className="skel" style={{ height: 220 }} />)}</div>
+        ) : (
           <div className="grid">
             {mentors.map((m) => (
-              <div className="card" key={m.mentor_id}>
+              <div className="card card-hover" key={m.mentor_id}>
                 <div style={{ display: "flex", gap: 13, alignItems: "center" }}>
                   <img src={m.profile_pic_url || "https://i.pravatar.cc/150"} width={60} height={60} style={{ borderRadius: "50%", objectFit: "cover" }} alt="" />
                   <div>
