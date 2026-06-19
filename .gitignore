@@ -21,3 +21,7 @@ Thumbs.db
 
 # supabase cli local state
 supabase/.temp/
+
+# local test scripts
+*_test.js
+run-migrations.js
