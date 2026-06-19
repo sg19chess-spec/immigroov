@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { money, myTz, fmtTime, fmtDate } from "@/lib/format";
 
@@ -8,8 +9,6 @@ type B = {
   service_title: string; mentor_name: string; mentor_tz: string; customer_tz: string;
   cost: number; cost_currency: string; mentor_earn: number; mentor_currency: string;
 };
-
-const STATUS: Record<string, string> = { confirmed: "var(--ok)", completed: "var(--navy2)", rescheduled: "#d97706", cancelled: "var(--bad)", no_show: "var(--bad)", pending: "var(--muted)" };
 
 export default function Bookings() {
   const supabase = createClient();
@@ -25,55 +24,52 @@ export default function Bookings() {
     setRows((data || []) as B[]);
   }
   useEffect(() => { load(); }, []);
+  async function cancel(id: number) { await supabase.rpc("cancel_booking", { p_booking_id: id, p_cancelled_by: "user" }); load(); }
 
-  async function cancel(id: number) {
-    await supabase.rpc("cancel_booking", { p_booking_id: id, p_cancelled_by: "user" });
-    load();
-  }
+  const now = Date.now();
+  const upcoming = rows.filter((b) => new Date(b.slot_time).getTime() >= now && !["cancelled", "completed", "no_show"].includes(b.status));
+  const past = rows.filter((b) => !upcoming.includes(b));
 
   return (
     <div className="container">
-      <h2 className="sec">Your sessions</h2>
-      {signedIn === false && <p className="muted">Sign in (or book a session) to see your bookings.</p>}
-      {signedIn && rows.length === 0 && <p className="muted">No bookings yet.</p>}
-      <div className="grid">
-        {rows.map((b) => (
-          <div className="card" key={b.id} style={{ padding: 0, overflow: "hidden" }}>
-            <div style={{ padding: 18, display: "flex", justifyContent: "space-between", gap: 10 }}>
-              <div>
-                <div style={{ fontWeight: 600 }}>{b.service_title}</div>
-                <div className="muted" style={{ fontSize: 13 }}>with {b.mentor_name}</div>
-              </div>
-              <span style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", color: STATUS[b.status], border: `1px solid ${STATUS[b.status]}`, padding: "3px 9px", borderRadius: 999, height: "fit-content" }}>{b.status}</span>
-            </div>
-            <Clock label="You" tz={b.customer_tz} iso={b.slot_time} dot="var(--orange)" />
-            <Clock label="Mentor" tz={b.mentor_tz} iso={b.slot_time} dot="var(--navy)" />
-            <Clock label="UTC" tz="UTC" iso={b.slot_time} dot="#94a3b8" />
-            <div style={{ display: "flex", justifyContent: "space-between", padding: "11px 18px", borderTop: "1px solid var(--line)", fontSize: 12 }}>
-              <div><div className="muted">You paid</div><b>{b.cost != null ? money(b.cost, b.cost_currency) : "—"}</b></div>
-              <div style={{ textAlign: "right" }}><div className="muted">Mentor earns</div><b style={{ color: "var(--orange-d)" }}>{b.mentor_earn != null ? money(b.mentor_earn, b.mentor_currency) : "—"}</b></div>
-            </div>
-            <div style={{ display: "flex", gap: 10, padding: 14, borderTop: "1px solid var(--line)" }}>
-              {b.meeting_url && <a href={b.meeting_url} target="_blank" className="btn btn-cta" style={{ padding: "9px 14px" }}>Join video call</a>}
-              {!["cancelled", "completed", "no_show"].includes(b.status) && <button className="btn-ghost" onClick={() => cancel(b.id)}>Cancel</button>}
-            </div>
-          </div>
-        ))}
-      </div>
+      <div className="section-head"><h2 className="sec">Your sessions</h2></div>
+
+      {signedIn === false && <div className="empty"><div className="ico">🔑</div>Sign in or book a session to see your bookings.<br /><Link href="/" className="btn btn-cta" style={{ marginTop: 14 }}>Browse mentors</Link></div>}
+      {signedIn && rows.length === 0 && <div className="empty"><div className="ico">📅</div>No bookings yet.<br /><Link href="/" className="btn btn-cta" style={{ marginTop: 14 }}>Find a mentor</Link></div>}
+
+      {upcoming.length > 0 && <h3 style={{ fontSize: 15, color: "var(--muted)", margin: "8px 0 14px" }}>Upcoming</h3>}
+      <div className="grid">{upcoming.map((b, i) => <Card key={b.id} b={b} tz={tz} i={i} onCancel={cancel} />)}</div>
+
+      {past.length > 0 && <h3 style={{ fontSize: 15, color: "var(--muted)", margin: "30px 0 14px" }}>Past &amp; cancelled</h3>}
+      <div className="grid">{past.map((b, i) => <Card key={b.id} b={b} tz={tz} i={i} onCancel={cancel} dim />)}</div>
     </div>
   );
 }
 
-function Clock({ label, tz, iso, dot }: { label: string; tz: string; iso: string; dot: string }) {
+function Card({ b, tz, i, onCancel, dim }: { b: B; tz: string; i: number; onCancel: (id: number) => void; dim?: boolean }) {
+  const active = !["cancelled", "completed", "no_show"].includes(b.status);
   return (
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "11px 18px", borderTop: "1px solid var(--line)" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        <span style={{ width: 9, height: 9, borderRadius: "50%", background: dot, display: "inline-block" }} />
-        <div><div style={{ fontSize: 13, fontWeight: 600 }}>{label}</div><div className="muted" style={{ fontSize: 11 }}>{tz}</div></div>
+    <div className="card reveal" style={{ padding: 0, overflow: "hidden", animationDelay: `${i * 50}ms`, opacity: dim ? 0.85 : 1 }}>
+      <div style={{ padding: "18px 20px", display: "flex", justifyContent: "space-between", gap: 10 }}>
+        <div>
+          <div style={{ fontWeight: 700, fontSize: 16 }}>{b.service_title}</div>
+          <div className="muted" style={{ fontSize: 13 }}>with {b.mentor_name}</div>
+        </div>
+        <span className={`pill st-${b.status}`}>{b.status}</span>
       </div>
-      <div style={{ textAlign: "right" }}>
-        <div style={{ fontFamily: "monospace", fontSize: 16, fontWeight: 600 }}>{fmtTime(iso, tz)}</div>
-        <div className="muted" style={{ fontSize: 11 }}>{fmtDate(iso, tz)}</div>
+      <div style={{ padding: "0 20px 14px" }}>
+        <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-.02em" }}>{fmtTime(b.slot_time, tz)}</div>
+        <div className="muted" style={{ fontSize: 13 }}>{fmtDate(b.slot_time, tz)} · your time ({tz})</div>
+        <div className="faint" style={{ fontSize: 12, marginTop: 4 }}>Mentor: {fmtTime(b.slot_time, b.mentor_tz)} ({b.mentor_tz}) · UTC {fmtTime(b.slot_time, "UTC")}</div>
+      </div>
+      <div style={{ display: "flex", justifyContent: "space-between", padding: "12px 20px", borderTop: "1px solid var(--line)", fontSize: 12, background: "var(--surface-2)" }}>
+        <div><div className="faint">You paid</div><b>{b.cost != null ? money(b.cost, b.cost_currency) : "—"}</b></div>
+        <div style={{ textAlign: "right" }}><div className="faint">Mentor earns</div><b style={{ color: "var(--orange-d)" }}>{b.mentor_earn != null ? money(b.mentor_earn, b.mentor_currency) : "—"}</b></div>
+      </div>
+      <div style={{ display: "flex", gap: 10, padding: 16, borderTop: "1px solid var(--line)" }}>
+        {b.meeting_url && active && <a href={b.meeting_url} target="_blank" className="btn btn-cta" style={{ flex: 1 }}>🎥 Join video call</a>}
+        {active && <button className="btn-ghost" onClick={() => onCancel(b.id)}>Cancel</button>}
+        {!active && <span className="faint" style={{ fontSize: 13, padding: "6px 0" }}>No actions available</span>}
       </div>
     </div>
   );

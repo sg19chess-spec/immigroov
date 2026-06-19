@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import ServicesManager from "@/components/ServicesManager";
 import AvailabilityManager from "@/components/AvailabilityManager";
@@ -13,6 +13,7 @@ export default function Dashboard() {
   const [mentorId, setMentorId] = useState<number | null>(null);
   const [tz, setTz] = useState("UTC");
   const [tab, setTab] = useState<"services" | "availability">("services");
+  const [stats, setStats] = useState({ services: 0, active: 0, days: 0, currency: "USD" });
 
   useEffect(() => {
     supabase.rpc("search_mentors", {}).then(({ data }) => {
@@ -22,30 +23,49 @@ export default function Dashboard() {
     });
   }, []);
 
+  const loadStats = useCallback(async (id: number) => {
+    const [{ data: svc }, { data: wk }] = await Promise.all([
+      supabase.rpc("demo_list_services", { p_mentor_id: id }),
+      supabase.rpc("demo_list_weekly", { p_mentor_id: id }),
+    ]);
+    setStats({
+      services: (svc || []).length,
+      active: (svc || []).filter((s: any) => s.is_active).length,
+      days: new Set((wk || []).map((w: any) => w.weekday)).size,
+      currency: (svc || [])[0]?.set_currency || "USD",
+    });
+  }, [supabase]);
+  useEffect(() => { if (mentorId) loadStats(mentorId); }, [mentorId, tab, loadStats]);
+
   return (
     <div className="container">
-      <h2 className="sec">Mentor console</h2>
-      <div className="card" style={{ marginBottom: 18, display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-        <label className="muted" style={{ fontSize: 13 }}>You are</label>
-        <select value={mentorId ?? ""} onChange={(e) => {
-          const id = Number(e.target.value); setMentorId(id);
-          setTz(mentors.find((m) => m.mentor_id === id)?.mentor_tz || "UTC");
-        }}>
+      <div className="section-head">
+        <div>
+          <h2 className="sec">Mentor console</h2>
+          <div className="lead">Manage your services and availability.</div>
+        </div>
+        <select value={mentorId ?? ""} onChange={(e) => { const id = Number(e.target.value); setMentorId(id); setTz(mentors.find((m) => m.mentor_id === id)?.mentor_tz || "UTC"); }}>
           {mentors.map((m) => <option key={m.mentor_id} value={m.mentor_id}>{m.name} ({m.mentor_tz})</option>)}
         </select>
-        <div style={{ flex: 1 }} />
-        <div style={{ display: "flex", gap: 3, background: "#eef3fa", borderRadius: 999, padding: 3 }}>
+      </div>
+
+      <div className="stats reveal" style={{ marginBottom: 22 }}>
+        <div className="stat"><div className="n">{stats.services}</div><div className="l">Services</div></div>
+        <div className="stat"><div className="n" style={{ color: "var(--ok)" }}>{stats.active}</div><div className="l">Active &amp; bookable</div></div>
+        <div className="stat"><div className="n">{stats.days}<span style={{ fontSize: 15, color: "var(--muted)" }}>/7</span></div><div className="l">Days with weekly hours</div></div>
+        <div className="stat"><div className="n" style={{ fontSize: 20 }}>{stats.currency}</div><div className="l">Payout currency · {tz}</div></div>
+      </div>
+
+      <div style={{ marginBottom: 20 }}>
+        <div className="seg">
           {(["services", "availability"] as const).map((t) => (
-            <button key={t} onClick={() => setTab(t)}
-              style={{ background: tab === t ? "var(--navy)" : "transparent", color: tab === t ? "#fff" : "var(--navy)", padding: "6px 14px", borderRadius: 999, fontSize: 13, textTransform: "capitalize" }}>
-              {t}
-            </button>
+            <button key={t} className={tab === t ? "on" : ""} onClick={() => setTab(t)} style={{ textTransform: "capitalize" }}>{t}</button>
           ))}
         </div>
       </div>
 
-      {mentorId && tab === "services" && <ServicesManager mentorId={mentorId} />}
-      {mentorId && tab === "availability" && <AvailabilityManager mentorId={mentorId} mentorTz={tz} />}
+      {mentorId && tab === "services" && <div className="reveal"><ServicesManager mentorId={mentorId} /></div>}
+      {mentorId && tab === "availability" && <div className="reveal"><AvailabilityManager mentorId={mentorId} mentorTz={tz} /></div>}
     </div>
   );
 }
