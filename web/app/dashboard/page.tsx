@@ -44,7 +44,7 @@ export default function Dashboard() {
           <h2 className="sec">Mentor console</h2>
           <div className="lead">Manage your services and availability.</div>
         </div>
-        <select value={mentorId ?? ""} onChange={(e) => { const id = Number(e.target.value); setMentorId(id); setTz(mentors.find((m) => m.mentor_id === id)?.mentor_tz || "UTC"); }}>
+        <select className="full-sm" value={mentorId ?? ""} onChange={(e) => { const id = Number(e.target.value); setMentorId(id); setTz(mentors.find((m) => m.mentor_id === id)?.mentor_tz || "UTC"); }}>
           {mentors.map((m) => <option key={m.mentor_id} value={m.mentor_id}>{m.name} ({m.mentor_tz})</option>)}
         </select>
       </div>

@@ -45,98 +45,103 @@ export default function AvailabilityManager({ mentorId, mentorTz }: { mentorId: 
   }, [supabase, mentorId]);
   useEffect(() => { load(); }, [load]);
 
-  async function addWeekly(day: string, s: string, e: string) {
-    if (!s || !e || e <= s) { setMsg("End must be after start."); return; }
-    await supabase.rpc("demo_add_weekly", { p_mentor_id: mentorId, p_day: day, p_start: s, p_end: e }); load();
-  }
+  async function addWeekly(day: string, s: string, e: string) { if (!s || !e || e <= s) { setMsg("End must be after start."); return; } await supabase.rpc("demo_add_weekly", { p_mentor_id: mentorId, p_day: day, p_start: s, p_end: e }); load(); }
   async function rmWeekly(id: string) { await supabase.rpc("demo_remove_weekly", { p_id: id }); load(); }
   async function saveRules() { await supabase.rpc("demo_set_rules", { p_mentor_id: mentorId, p_days_ahead: rules.days, p_min_notice_hours: rules.notice }); setMsg("Booking rules saved."); }
   async function block() { if (!sel) return; await supabase.rpc("demo_block_date", { p_mentor_id: mentorId, p_date: sel }); setMsg(`${sel} blocked.`); load(); }
-  async function override() { if (!sel) return; await supabase.rpc("demo_override_date", { p_mentor_id: mentorId, p_date: sel, p_start: ovr.s, p_end: ovr.e }); setMsg(`${sel} custom hours set.`); load(); }
+  async function override() { if (!sel || ovr.e <= ovr.s) { setMsg("End must be after start."); return; } await supabase.rpc("demo_override_date", { p_mentor_id: mentorId, p_date: sel, p_start: ovr.s, p_end: ovr.e }); setMsg(`${sel} custom hours set.`); load(); }
   async function reset() { if (!sel) return; const info = dates[sel]; if (info) for (const id of info.ids) await supabase.rpc("demo_remove_slot", { p_id: id }); setMsg(`${sel} reset to weekly.`); load(); }
   async function preview() {
     if (!prev.svc || !prev.date) { setPrev({ ...prev, out: "Pick a service and date." }); return; }
     const { data } = await supabase.rpc("get_available_slots", { p_mentor_id: mentorId, p_service_id: prev.svc, p_from: prev.date, p_to: prev.date });
-    if (!data || data.length === 0) { setPrev({ ...prev, out: "No bookable slots that day." }); return; }
-    setPrev({ ...prev, out: `${data.length} slots: ` + data.map((s: any) => fmtTime(s.slot_start, mentorTz)).join(", ") });
+    setPrev({ ...prev, out: !data || data.length === 0 ? "No bookable slots that day." : `${data.length} slots: ` + data.map((s: any) => fmtTime(s.slot_start, mentorTz)).join(", ") });
   }
 
+  // calendar (grid)
   const weekdaySet = new Set(Object.keys(weekly));
   const first = new Date(cal.y, cal.m, 1);
   const lead = (first.getDay() + 6) % 7;
   const dim = new Date(cal.y, cal.m + 1, 0).getDate();
   const todayK = ymd(new Date().getFullYear(), new Date().getMonth(), new Date().getDate());
   const cells: JSX.Element[] = [];
-  for (let i = 0; i < lead; i++) cells.push(<td key={"x" + i} />);
+  for (let i = 0; i < lead; i++) cells.push(<div key={"e" + i} className="cal-day empty" />);
   for (let day = 1; day <= dim; day++) {
     const k = ymd(cal.y, cal.m, day); const past = k < todayK; const info = dates[k];
     const wd = DAYS[(new Date(cal.y, cal.m, day).getDay() + 6) % 7];
-    let bg = "transparent"; if (info?.block) bg = "#fdecec"; else if (info?.ovr.length) bg = "var(--orange-soft)";
+    const cls = ["cal-day"];
+    if (k === sel) cls.push("sel"); else if (info?.block) cls.push("blk"); else if (info?.ovr.length) cls.push("ovr");
+    if (past) cls.push("disabled");
+    let pin = ""; if (!k.startsWith("sel")) { if (info?.block) pin = "var(--bad)"; else if (info?.ovr.length) pin = "var(--orange)"; else if (weekdaySet.has(wd) && !past) pin = "var(--ok)"; }
     cells.push(
-      <td key={k} onClick={() => !past && setSel(k)}
-        style={{ height: 54, border: "1px solid var(--line)", verticalAlign: "top", padding: 5, fontSize: 13, cursor: past ? "default" : "pointer", color: past ? "#c2cbd9" : undefined, background: bg, outline: k === sel ? "2px solid var(--orange)" : undefined }}>
-        {day}
-        {info?.block ? <div style={{ fontSize: 10, color: "#9b1c1c" }}>blocked</div>
-          : info?.ovr.length ? <div style={{ fontSize: 10, color: "var(--orange-d)" }}>{info.ovr.join(", ")}</div>
-          : weekdaySet.has(wd) && !past ? <span style={{ display: "inline-block", width: 6, height: 6, borderRadius: "50%", background: "var(--ok)" }} /> : null}
-      </td>
+      <button key={k} className={cls.join(" ")} disabled={past} onClick={() => setSel(k)}>
+        {day}{pin && k !== sel && <span className="pin" style={{ background: pin }} />}
+      </button>
     );
   }
-  const rows: JSX.Element[] = [];
-  for (let i = 0; i < cells.length; i += 7) rows.push(<tr key={i}>{cells.slice(i, i + 7)}</tr>);
+
+  const info = sel ? dates[sel] : null;
 
   return (
-    <div>
+    <div style={{ display: "grid", gap: 18 }}>
       {msg && <div className="banner ok">{msg}</div>}
 
       <div className="card">
-        <h2 style={{ marginTop: 0 }}>Weekly hours <span className="muted" style={{ fontSize: 13, fontWeight: 400 }}>({mentorTz})</span></h2>
+        <h2 className="sec" style={{ fontSize: 18 }}>Weekly hours <span className="faint" style={{ fontSize: 13, fontWeight: 400 }}>· {mentorTz}</span></h2>
         {DAYS.map((d) => <DayRow key={d} day={d} ranges={weekly[d] || []} onAdd={addWeekly} onRemove={rmWeekly} />)}
       </div>
 
       <div className="card">
-        <h2 style={{ marginTop: 0 }}>Booking rules</h2>
-        <div style={{ display: "flex", gap: 18, flexWrap: "wrap", alignItems: "flex-end" }}>
-          <div><label className="muted" style={{ fontSize: 12 }}>Accept bookings up to</label><br /><input type="number" min={1} value={rules.days} onChange={(e) => setRules({ ...rules, days: Number(e.target.value) })} style={{ width: 90 }} /> <span className="muted">days ahead</span></div>
-          <div><label className="muted" style={{ fontSize: 12 }}>Minimum notice</label><br /><input type="number" min={0} step={0.5} value={rules.notice} onChange={(e) => setRules({ ...rules, notice: Number(e.target.value) })} style={{ width: 90 }} /> <span className="muted">hours</span></div>
-          <button className="btn-cta" onClick={saveRules}>Save rules</button>
+        <h2 className="sec" style={{ fontSize: 18 }}>Booking rules</h2>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 14, alignItems: "end" }}>
+          <div><label className="fld">Accept up to (days ahead)</label><input type="number" min={1} value={rules.days} onChange={(e) => setRules({ ...rules, days: Number(e.target.value) })} style={{ width: "100%" }} /></div>
+          <div><label className="fld">Minimum notice (hours)</label><input type="number" min={0} step={0.5} value={rules.notice} onChange={(e) => setRules({ ...rules, notice: Number(e.target.value) })} style={{ width: "100%" }} /></div>
+          <button className="btn-cta full-sm" onClick={saveRules}>Save rules</button>
         </div>
       </div>
 
       <div className="card">
-        <h2 style={{ marginTop: 0 }}>Date overrides</h2>
-        <p className="muted" style={{ fontSize: 13, marginTop: -6 }}>Click a date to block it or set custom hours (overrides replace weekly).</p>
-        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
-          <button className="btn-ghost" onClick={() => setCal(({ y, m }) => m === 0 ? { y: y - 1, m: 11 } : { y, m: m - 1 })}>‹</button>
-          <b>{new Date(cal.y, cal.m, 1).toLocaleDateString("en", { month: "long", year: "numeric" })}</b>
-          <button className="btn-ghost" onClick={() => setCal(({ y, m }) => m === 11 ? { y: y + 1, m: 0 } : { y, m: m + 1 })}>›</button>
+        <h2 className="sec" style={{ fontSize: 18 }}>Date overrides</h2>
+        <p className="lead" style={{ marginTop: -4 }}>Tap a date to block it or set custom hours. <span style={{ color: "var(--ok)" }}>●</span> weekly <span style={{ color: "var(--orange)" }}>●</span> custom <span style={{ color: "var(--bad)" }}>●</span> blocked</p>
+        <div className="cal" style={{ maxWidth: 420 }}>
+          <div className="cal-head">
+            <button className="btn-ghost btn-sm" onClick={() => setCal(({ y, m }) => m === 0 ? { y: y - 1, m: 11 } : { y, m: m - 1 })}>‹</button>
+            <b>{new Date(cal.y, cal.m, 1).toLocaleDateString("en", { month: "long", year: "numeric" })}</b>
+            <button className="btn-ghost btn-sm" onClick={() => setCal(({ y, m }) => m === 11 ? { y: y + 1, m: 0 } : { y, m: m + 1 })}>›</button>
+          </div>
+          <div className="cal-grid">
+            {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => <div key={d} className="cal-dow">{d}</div>)}
+            {cells}
+          </div>
         </div>
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead><tr>{["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => <th key={d} style={{ fontSize: 11, color: "var(--muted)", padding: 6 }}>{d}</th>)}</tr></thead>
-          <tbody>{rows}</tbody>
-        </table>
+
         {sel && (
-          <div className="banner ok" style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", marginTop: 12 }}>
-            <b>{sel}</b>
-            <button className="btn-ghost" onClick={block}>Block day</button>
-            <span className="muted">or hours:</span>
-            <input type="time" value={ovr.s} onChange={(e) => setOvr({ ...ovr, s: e.target.value })} /> –
-            <input type="time" value={ovr.e} onChange={(e) => setOvr({ ...ovr, e: e.target.value })} />
-            <button className="btn-cta" onClick={override}>Set</button>
-            <button className="btn-ghost" onClick={reset}>Reset to weekly</button>
+          <div className="card reveal" style={{ background: "var(--surface-2)", marginTop: 14 }}>
+            <div className="row-between" style={{ marginBottom: 10 }}>
+              <b>{new Intl.DateTimeFormat("en", { weekday: "long", month: "long", day: "numeric" }).format(new Date(sel + "T12:00:00"))}</b>
+              <span className="muted" style={{ fontSize: 13 }}>{info?.block ? "Blocked" : info?.ovr.length ? `Custom: ${info.ovr.join(", ")}` : "Uses weekly hours"}</span>
+            </div>
+            <div className="actions stack-sm" style={{ alignItems: "stretch" }}>
+              <button className="btn-ghost full-sm" onClick={block}>Block this day</button>
+              <div className="actions" style={{ flex: 1, alignItems: "center" }}>
+                <input type="time" value={ovr.s} onChange={(e) => setOvr({ ...ovr, s: e.target.value })} /> <span className="muted">to</span>
+                <input type="time" value={ovr.e} onChange={(e) => setOvr({ ...ovr, e: e.target.value })} />
+                <button className="btn-cta" onClick={override}>Set hours</button>
+              </div>
+            </div>
+            {info && <button className="btn-ghost btn-sm full-sm" style={{ marginTop: 10 }} onClick={reset}>Reset to weekly</button>}
           </div>
         )}
       </div>
 
       <div className="card">
-        <h2 style={{ marginTop: 0 }}>Preview bookable slots</h2>
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-          <select value={prev.svc ?? ""} onChange={(e) => setPrev({ ...prev, svc: Number(e.target.value) })}>
+        <h2 className="sec" style={{ fontSize: 18 }}>Preview bookable slots</h2>
+        <div className="actions stack-sm" style={{ alignItems: "stretch" }}>
+          <select className="full-sm" value={prev.svc ?? ""} onChange={(e) => setPrev({ ...prev, svc: Number(e.target.value) })}>
             <option value="">Select service</option>
             {services.map((s) => <option key={s.id} value={s.id}>{s.title} · {s.duration}m</option>)}
           </select>
-          <input type="date" value={prev.date} onChange={(e) => setPrev({ ...prev, date: e.target.value })} />
-          <button onClick={preview}>Show slots</button>
+          <input className="full-sm" type="date" value={prev.date} onChange={(e) => setPrev({ ...prev, date: e.target.value })} />
+          <button className="full-sm" onClick={preview}>Show slots</button>
         </div>
         {prev.out && <p className="muted" style={{ marginTop: 10 }}>{prev.out}</p>}
       </div>
@@ -145,16 +150,21 @@ export default function AvailabilityManager({ mentorId, mentorTz }: { mentorId: 
 }
 
 function DayRow({ day, ranges, onAdd, onRemove }: { day: string; ranges: Weekly[]; onAdd: (d: string, s: string, e: string) => void; onRemove: (id: string) => void }) {
-  const [s, setS] = useState("09:00"); const [e, setE] = useState("17:00");
+  const [s, setS] = useState("09:00"); const [e, setE] = useState("17:00"); const [open, setOpen] = useState(false);
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 0", borderBottom: "1px solid var(--line)", flexWrap: "wrap" }}>
-      <div style={{ width: 50, fontWeight: 600 }}>{day.slice(0, 3)}</div>
+    <div className="day-row">
+      <div className="day-name">{day.slice(0, 3)}</div>
       <div style={{ flex: 1, display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
-        {ranges.length === 0 && <span className="muted" style={{ fontSize: 13 }}>Unavailable</span>}
-        {ranges.map((r) => <span key={r.id} className="tag" style={{ fontSize: 12 }}>{hm(r.start_time)}–{hm(r.end_time)} <span style={{ color: "var(--bad)", cursor: "pointer" }} onClick={() => onRemove(r.id)}>×</span></span>)}
-        <input type="time" value={s} onChange={(ev) => setS(ev.target.value)} style={{ padding: "5px 8px" }} />–
-        <input type="time" value={e} onChange={(ev) => setE(ev.target.value)} style={{ padding: "5px 8px" }} />
-        <button className="btn-ghost" onClick={() => onAdd(day, s, e)}>+ Add</button>
+        {ranges.length === 0 && !open && <span className="faint" style={{ fontSize: 13 }}>Unavailable</span>}
+        {ranges.map((r) => <span key={r.id} className="range-pill">{hm(r.start_time)}–{hm(r.end_time)} <span className="x" onClick={() => onRemove(r.id)}>×</span></span>)}
+        {open ? (
+          <span style={{ display: "inline-flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+            <input type="time" value={s} onChange={(ev) => setS(ev.target.value)} style={{ padding: "7px 9px" }} />–
+            <input type="time" value={e} onChange={(ev) => setE(ev.target.value)} style={{ padding: "7px 9px" }} />
+            <button className="btn-cta btn-sm" onClick={() => { onAdd(day, s, e); setOpen(false); }}>Add</button>
+            <button className="btn-ghost btn-sm" onClick={() => setOpen(false)}>✕</button>
+          </span>
+        ) : <button className="btn-ghost btn-sm" onClick={() => setOpen(true)}>+ Add hours</button>}
       </div>
     </div>
   );
