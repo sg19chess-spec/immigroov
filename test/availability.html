@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Immigroov — Availability manager</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+  :root{ --bg:#f6f8fc; --surface:#fff; --navy:#0b2545; --navy2:#13315c; --orange:#f97316; --orange-d:#c2570c; --orange-soft:#fff1e6; --ink:#0b2545; --muted:#64748b; --line:#e6ebf3; --bad:#dc2626; --ok:#16a34a; }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--ink);}
+  .nav{position:sticky;top:0;z-index:20;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px;padding:12px 24px;flex-wrap:wrap;}
+  .brand{display:flex;align-items:center;gap:9px;font-weight:700;font-size:17px;}
+  .logo{width:30px;height:30px;border-radius:9px;background:var(--navy);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;}
+  .logo b{color:var(--orange);}
+  .navspace{flex:1;}
+  a{color:var(--navy2);text-decoration:none;font-size:13px;}
+  main{max-width:1000px;margin:0 auto;padding:24px;}
+  input,select,button{font:inherit;}
+  input,select{background:#fff;border:1px solid var(--line);border-radius:9px;padding:8px 11px;font-size:14px;color:var(--ink);}
+  button{background:var(--navy);border:0;color:#fff;padding:9px 14px;border-radius:9px;cursor:pointer;font-weight:600;font-size:14px;}
+  button:hover{background:var(--navy2);}
+  button.cta{background:var(--orange);} button.cta:hover{background:var(--orange-d);}
+  button.ghost{background:#fff;color:var(--navy);border:1px solid var(--line);font-weight:500;}
+  button.sm{padding:5px 10px;font-size:12px;}
+  .card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:20px;margin-bottom:20px;box-shadow:0 1px 2px rgba(11,37,69,.05);}
+  h2{font-size:16px;font-weight:700;margin:0 0 4px;}
+  .sub{color:var(--muted);font-size:13px;margin:0 0 14px;}
+  .muted{color:var(--muted);}
+  .dayrow{display:flex;align-items:flex-start;gap:12px;padding:10px 0;border-bottom:1px solid var(--line);}
+  .dayname{width:90px;font-weight:600;padding-top:6px;}
+  .ranges{flex:1;display:flex;flex-wrap:wrap;gap:8px;align-items:center;}
+  .range{display:inline-flex;align-items:center;gap:6px;background:#eef3fb;border:1px solid #d6e0ef;border-radius:9px;padding:5px 9px;font-size:13px;}
+  .range b{font-weight:600;}
+  .x{cursor:pointer;color:var(--bad);font-weight:700;}
+  .tag{display:inline-block;font-size:11px;background:#eef3fa;color:var(--navy2);padding:3px 9px;border-radius:999px;margin:0 4px 0 0;}
+  table.cal{width:100%;border-collapse:collapse;}
+  table.cal th{font-size:11px;color:var(--muted);font-weight:600;padding:6px;text-transform:uppercase;}
+  table.cal td{height:54px;width:14.28%;border:1px solid var(--line);vertical-align:top;padding:5px;font-size:13px;cursor:pointer;}
+  td.pastday{color:#c2cbd9;background:#fafbfd;cursor:not-allowed;}
+  td.sel{outline:2px solid var(--orange);}
+  td.block{background:#fdecec;}
+  td.ovr{background:var(--orange-soft);}
+  .dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--ok);margin-left:3px;vertical-align:middle;}
+  .pill{font-size:10px;padding:1px 6px;border-radius:999px;display:inline-block;margin-top:3px;}
+  .pill.b{background:#fdecec;color:#9b1c1c;} .pill.o{background:var(--orange-soft);color:var(--orange-d);}
+  .banner{padding:10px 13px;border-radius:9px;font-size:13px;margin-bottom:12px;}
+  .banner.ok{background:#e9f7ef;color:#10663a;border:1px solid #bce6cf;}
+  .banner.bad{background:#fdecec;color:#9b1c1c;border:1px solid #f6c9c9;}
+  .slot{display:inline-block;background:#eef3fb;border:1px solid #d6e0ef;border-radius:8px;padding:5px 9px;margin:3px 4px 0 0;font-size:12px;}
+</style>
+</head>
+<body>
+<nav class="nav">
+  <div class="brand"><span class="logo">I<b>G</b></span> Immigroov</div>
+  <div style="display:flex;gap:3px;background:#eef3fa;border-radius:999px;padding:3px;margin-left:6px">
+    <a href="index.html" style="text-decoration:none;color:var(--navy);padding:5px 13px;border-radius:999px;font-size:13px;font-weight:600">Mentee</a>
+    <a href="availability.html" style="text-decoration:none;background:var(--navy);color:#fff;padding:5px 13px;border-radius:999px;font-size:13px;font-weight:600">Mentor</a>
+  </div>
+  <div class="navspace"></div>
+  <span class="muted" style="font-size:13px">Mentor console</span>
+</nav>
+
+<main>
+  <div id="msg"></div>
+  <div class="card">
+    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+      <strong>Mentor</strong>
+      <select id="mentor" onchange="selectMentor()" style="min-width:260px"></select>
+      <span class="muted" id="mtz"></span>
+    </div>
+    <div id="services" style="margin-top:12px"></div>
+  </div>
+
+  <div class="card">
+    <h2>Services</h2>
+    <p class="sub">Each service has a name, duration, and price in your currency. The mentee pays this converted to their currency + the platform fee.</p>
+    <div id="svcList"></div>
+    <div style="border-top:1px solid var(--line);margin-top:14px;padding-top:14px">
+      <b style="font-size:13px">Add a service</b>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
+        <input id="svTitle" placeholder="Title (e.g. Visa Strategy Call)">
+        <input id="svCat" placeholder="Category (e.g. Work Visa)">
+        <input id="svDesc" placeholder="Short description" style="grid-column:1/3">
+        <select id="svType"><option value="video">Video consultation</option><option value="dm">DM / text</option></select>
+        <select id="svDur"><option value="15">15 min</option><option value="30" selected>30 min</option><option value="45">45 min</option><option value="60">60 min</option></select>
+        <input id="svPrice" type="number" min="0" placeholder="Price (in mentor currency)">
+        <div style="display:flex;align-items:center;gap:14px;font-size:13px">
+          <label style="display:inline-flex;gap:5px;align-items:center;margin:0"><input type="checkbox" id="svPpp" style="width:auto"> PPP</label>
+          <label style="display:inline-flex;gap:5px;align-items:center;margin:0"><input type="checkbox" id="svActive" checked style="width:auto"> Active</label>
+        </div>
+      </div>
+      <button class="cta sm" style="margin-top:10px" onclick="createService()">Create service</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Weekly hours</h2>
+    <p class="sub">Recurring availability in the mentor's timezone. Add multiple time ranges per day with “+”.</p>
+    <div id="weekly"></div>
+  </div>
+
+  <div class="card">
+    <h2>Booking rules</h2>
+    <p class="sub">How far ahead bookings open, and the minimum notice before a slot.</p>
+    <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:flex-end">
+      <div><label class="muted" style="font-size:12px">Accept bookings up to</label><br><input type="number" id="daysAhead" min="1" style="width:90px"> <span class="muted">days ahead</span></div>
+      <div><label class="muted" style="font-size:12px">Minimum notice</label><br><input type="number" id="minNotice" min="0" step="0.5" style="width:90px"> <span class="muted">hours</span></div>
+      <button class="cta" onclick="saveRules()">Save rules</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Date overrides</h2>
+    <p class="sub">Click a date to <b>block it</b> (day off) or set <b>custom hours</b> for that day only. Overrides replace the weekly hours; blackouts remove the day.</p>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+      <button class="ghost sm" onclick="moveMonth(-1)">‹</button>
+      <strong id="calLabel"></strong>
+      <button class="ghost sm" onclick="moveMonth(1)">›</button>
+      <span class="muted" style="font-size:12px;margin-left:auto"><span class="pill b">blocked</span> <span class="pill o">custom hours</span> <span class="dot"></span> weekly</span>
+    </div>
+    <table class="cal"><thead><tr><th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th><th>Sat</th><th>Sun</th></tr></thead><tbody id="calBody"></tbody></table>
+    <div id="dateActions" style="margin-top:12px"></div>
+  </div>
+
+  <div class="card">
+    <h2>Preview bookable slots</h2>
+    <p class="sub">See exactly what a mentee would get for a service on a date (validates against everything above).</p>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+      <select id="prevService"></select>
+      <input type="date" id="prevDate">
+      <button onclick="preview()">Show slots</button>
+    </div>
+    <div id="prevOut" style="margin-top:12px"></div>
+  </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL="https://atkulcfyaqcivzxteela.supabase.co";
+const ANON="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF0a3VsY2Z5YXFjaXZ6eHRlZWxhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE1MDU3MzQsImV4cCI6MjA5NzA4MTczNH0.oBcBBjUXL26X5FKzpDpi4G-e0wWtCNLrXoHhYdwdJok";
+const sb=supabase.createClient(SUPABASE_URL,ANON);
+const DAYS=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+let M={ id:null, tz:'UTC', services:[], dates:{}, weekdays:new Set() };
+let cal={ y:new Date().getFullYear(), m:new Date().getMonth() };
+let selDate=null;
+const msg=(h,c='ok')=>document.getElementById('msg').innerHTML=`<div class="banner ${c}">${h}</div>`;
+const ymd=(y,m,d)=>`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+const hm=t=>t?String(t).slice(0,5):'';
+
+async function init(){
+  const { data } = await sb.rpc('search_mentors',{});
+  document.getElementById('mentor').innerHTML=(data||[]).map(m=>`<option value="${m.mentor_id}">${m.name} (${m.mentor_tz})</option>`).join('');
+  if(data && data.length) selectMentor();
+}
+async function selectMentor(){
+  M.id=+document.getElementById('mentor').value;
+  const opt=document.getElementById('mentor').selectedOptions[0].text;
+  M.tz=opt.slice(opt.indexOf('(')+1,opt.indexOf(')'))||'UTC';
+  document.getElementById('mtz').textContent='timezone: '+M.tz;
+  document.getElementById('services').innerHTML='';
+  await Promise.all([loadServices(), loadWeekly(), loadRules(), loadDates()]);
+}
+
+async function loadServices(){
+  const { data }=await sb.rpc('demo_list_services',{p_mentor_id:M.id});
+  M.services=(data||[]).filter(s=>s.is_active);
+  document.getElementById('prevService').innerHTML=M.services.map(s=>`<option value="${s.id}">${s.title} · ${s.duration}m</option>`).join('');
+  document.getElementById('svcList').innerHTML=(data||[]).map(s=>`
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line)">
+      <div>
+        <div style="font-weight:600">${s.title} <span class="muted" style="font-weight:400">· ${s.duration}m · ${s.type}</span> ${s.is_active?'':'<span class="pill b">inactive</span>'}</div>
+        <div class="muted" style="font-size:12px">${s.category||'—'} · ${money(s.set_price,s.set_currency)} ${s.set_currency} (fee ${money(s.platform_fee,s.set_currency)})${s.is_ppp?' · PPP':''}</div>
+        <div id="q-${s.id}" style="margin-top:4px"></div>
+      </div>
+      <div style="display:flex;gap:6px;white-space:nowrap">
+        <button class="ghost sm" onclick="toggleService(${s.id},${!s.is_active})">${s.is_active?'Deactivate':'Activate'}</button>
+        <button class="ghost sm" onclick="manageQ(${s.id})">Questions</button>
+        <button class="ghost sm" style="color:var(--bad)" onclick="delService(${s.id})">Delete</button>
+      </div>
+    </div>`).join('') || '<span class="muted" style="font-size:13px">No services yet.</span>';
+}
+const money=(a,c)=>new Intl.NumberFormat('en',{style:'currency',currency:c||'USD'}).format(a||0);
+async function createService(){
+  const t=document.getElementById('svTitle').value.trim();
+  const p=+document.getElementById('svPrice').value;
+  if(!t||!p){ msg('Title and price are required.','bad'); return; }
+  const { error }=await sb.rpc('demo_create_service',{
+    p_mentor_id:M.id, p_title:t, p_description:document.getElementById('svDesc').value,
+    p_type:document.getElementById('svType').value, p_duration:+document.getElementById('svDur').value,
+    p_category:document.getElementById('svCat').value, p_set_price:p,
+    p_active:document.getElementById('svActive').checked, p_ppp:document.getElementById('svPpp').checked });
+  if(error){ msg(error.message,'bad'); return; }
+  document.getElementById('svTitle').value=''; document.getElementById('svPrice').value=''; document.getElementById('svDesc').value=''; document.getElementById('svCat').value='';
+  msg('Service created.'); loadServices();
+}
+async function toggleService(id,active){ await sb.rpc('demo_set_service_active',{p_id:id,p_active:active}); loadServices(); }
+async function delService(id){ const {error}=await sb.rpc('demo_delete_service',{p_id:id}); if(error)msg(error.message,'bad'); loadServices(); }
+async function manageQ(id){
+  const box=document.getElementById('q-'+id);
+  if(box.dataset.open){ box.dataset.open=''; box.innerHTML=''; return; }
+  box.dataset.open='1';
+  const { data }=await sb.rpc('demo_list_questions',{p_service_id:id});
+  box.innerHTML=`<div style="background:#f6f8fc;border:1px solid var(--line);border-radius:9px;padding:8px;margin-top:4px">
+    <div style="font-size:12px;font-weight:600;margin-bottom:4px">Custom questions</div>
+    ${(data||[]).map(q=>`<div style="font-size:12px;padding:2px 0">• ${q.question_text}${q.is_required?' <span class="muted">(required)</span>':''} <span class="x" onclick="rmQ(${q.id},${id})">×</span></div>`).join('')||'<div class="muted" style="font-size:12px">None yet.</div>'}
+    <div style="display:flex;gap:6px;margin-top:6px"><input id="qt-${id}" placeholder="New question" style="flex:1;font-size:12px;padding:5px 8px"><label style="display:inline-flex;gap:4px;align-items:center;font-size:12px;margin:0"><input type="checkbox" id="qr-${id}" style="width:auto">req</label><button class="cta sm" onclick="addQ(${id})">Add</button></div>
+  </div>`;
+}
+async function addQ(id){ const t=document.getElementById('qt-'+id).value.trim(); if(!t)return; await sb.rpc('demo_add_question',{p_service_id:id,p_text:t,p_required:document.getElementById('qr-'+id).checked,p_type:'text'}); const b=document.getElementById('q-'+id); b.dataset.open=''; manageQ(id); }
+async function rmQ(qid,sid){ await sb.rpc('demo_remove_question',{p_id:qid}); const b=document.getElementById('q-'+sid); b.dataset.open=''; manageQ(sid); }
+
+async function loadRules(){
+  const { data }=await sb.rpc('demo_get_rules',{p_mentor_id:M.id});
+  const r=(data&&data[0])||{days_ahead:30,min_notice_hours:2};
+  document.getElementById('daysAhead').value=r.days_ahead;
+  document.getElementById('minNotice').value=r.min_notice_hours;
+}
+async function saveRules(){
+  await sb.rpc('demo_set_rules',{p_mentor_id:M.id,p_days_ahead:+document.getElementById('daysAhead').value,p_min_notice_hours:+document.getElementById('minNotice').value});
+  msg('Booking rules saved.');
+}
+
+async function loadWeekly(){
+  const { data }=await sb.rpc('demo_list_weekly',{p_mentor_id:M.id});
+  const byDay={}; M.weekdays=new Set();
+  (data||[]).forEach(r=>{ (byDay[r.weekday]=byDay[r.weekday]||[]).push(r); M.weekdays.add(r.weekday); });
+  document.getElementById('weekly').innerHTML=DAYS.map(d=>`
+    <div class="dayrow">
+      <div class="dayname">${d.slice(0,3)}</div>
+      <div class="ranges">
+        ${(byDay[d]||[]).map(r=>`<span class="range"><b>${hm(r.start_time)}–${hm(r.end_time)}</b> <span class="x" onclick="rmWeekly('${r.id}')">×</span></span>`).join('') || '<span class="muted" style="font-size:13px">Unavailable</span>'}
+        <button class="ghost sm" onclick="addWeekly('${d}')">+ Add time</button>
+      </div>
+    </div>`).join('');
+}
+async function addWeekly(day){
+  const s=prompt('Start time for '+day+' (HH:MM)','09:00'); if(!s) return;
+  const e=prompt('End time for '+day+' (HH:MM)','17:00'); if(!e) return;
+  await sb.rpc('demo_add_weekly',{p_mentor_id:M.id,p_day:day,p_start:s,p_end:e});
+  loadWeekly(); loadCal();
+}
+async function rmWeekly(id){ await sb.rpc('demo_remove_weekly',{p_id:id}); loadWeekly(); loadCal(); }
+
+async function loadDates(){
+  const { data }=await sb.rpc('demo_list_slots',{p_mentor_id:M.id});
+  M.dates={};
+  (data||[]).forEach(r=>{ const k=r.slot_date.slice?r.slot_date.slice(0,10):r.slot_date; (M.dates[k]=M.dates[k]||{block:false,ovr:[],ids:[]}); M.dates[k].ids.push(r.id); if(r.is_blackout)M.dates[k].block=true; else M.dates[k].ovr.push(hm(r.start_time)+'–'+hm(r.end_time)); });
+  loadCal();
+}
+function moveMonth(d){ cal.m+=d; if(cal.m<0){cal.m=11;cal.y--;} if(cal.m>11){cal.m=0;cal.y++;} loadCal(); }
+function loadCal(){
+  document.getElementById('calLabel').textContent=new Date(cal.y,cal.m,1).toLocaleDateString('en',{month:'long',year:'numeric'});
+  const first=new Date(cal.y,cal.m,1); let lead=(first.getDay()+6)%7; // Mon=0
+  const dim=new Date(cal.y,cal.m+1,0).getDate();
+  const todayK=ymd(new Date().getFullYear(),new Date().getMonth(),new Date().getDate());
+  let cells=[]; for(let i=0;i<lead;i++)cells.push('<td></td>');
+  for(let day=1;day<=dim;day++){
+    const k=ymd(cal.y,cal.m,day); const past=k<todayK; const info=M.dates[k];
+    const wd=DAYS[(new Date(cal.y,cal.m,day).getDay()+6)%7]; const hasWeekly=M.weekdays.has(wd);
+    let cls='', mark='';
+    if(past)cls='pastday';
+    else if(info&&info.block){cls='block';mark='<div class="pill b">blocked</div>';}
+    else if(info&&info.ovr.length){cls='ovr';mark='<div class="pill o">'+info.ovr.join(', ')+'</div>';}
+    else if(hasWeekly)mark='<span class="dot"></span>';
+    if(k===selDate)cls+=' sel';
+    cells.push(`<td class="${cls}" ${past?'':`onclick="pickDate('${k}')"`}>${day}${mark}</td>`);
+  }
+  let rows=''; for(let i=0;i<cells.length;i+=7)rows+='<tr>'+cells.slice(i,i+7).join('')+'</tr>';
+  document.getElementById('calBody').innerHTML=rows;
+}
+function pickDate(k){ selDate=k; loadCal();
+  document.getElementById('dateActions').innerHTML=`
+    <div class="banner ok" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+      <b>${k}</b>
+      <button class="ghost sm" onclick="blockDate()">Block day (day off)</button>
+      <span class="muted">or custom hours:</span>
+      <input id="ovS" type="time" value="10:00" style="padding:5px 8px"> – <input id="ovE" type="time" value="14:00" style="padding:5px 8px">
+      <button class="cta sm" onclick="overrideDate()">Set custom hours</button>
+      <button class="ghost sm" onclick="clearDate()">Reset to weekly</button>
+    </div>`;
+}
+async function blockDate(){ await sb.rpc('demo_block_date',{p_mentor_id:M.id,p_date:selDate}); msg(selDate+' blocked.'); loadDates(); }
+async function overrideDate(){ await sb.rpc('demo_override_date',{p_mentor_id:M.id,p_date:selDate,p_start:document.getElementById('ovS').value,p_end:document.getElementById('ovE').value}); msg(selDate+' custom hours set.'); loadDates(); }
+async function clearDate(){ const info=M.dates[selDate]; if(info)for(const id of info.ids) await sb.rpc('demo_remove_slot',{p_id:id}); msg(selDate+' reset to weekly.'); loadDates(); }
+
+async function preview(){
+  const svc=+document.getElementById('prevService').value, date=document.getElementById('prevDate').value;
+  if(!date){ document.getElementById('prevOut').innerHTML='<span class="muted">Pick a date.</span>'; return; }
+  const { data, error }=await sb.rpc('get_available_slots',{p_mentor_id:M.id,p_service_id:svc,p_from:date,p_to:date});
+  if(error){ document.getElementById('prevOut').innerHTML=`<div class="banner bad">${error.message}</div>`; return; }
+  if(!data||!data.length){ document.getElementById('prevOut').innerHTML='<span class="muted">No bookable slots that day.</span>'; return; }
+  document.getElementById('prevOut').innerHTML='<b style="font-size:13px">'+data.length+' slots (mentor time '+M.tz+'):</b><br>'+
+    data.map(s=>`<span class="slot">${new Intl.DateTimeFormat('en',{timeZone:M.tz,hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(s.slot_start))}</span>`).join('');
+}
+init();
+</script>
+</body>
+</html>

@@ -1,0 +1,560 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Immigroov — Console</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+  :root{
+    --bg:#f6f8fc; --surface:#ffffff;
+    --navy:#0b2545; --navy2:#13315c;
+    --orange:#f97316; --orange-d:#c2570c; --orange-soft:#fff1e6;
+    --ink:#0b2545; --muted:#64748b; --line:#e6ebf3;
+    --ok:#16a34a; --bad:#dc2626; --amber:#d97706;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased;}
+  .nav{position:sticky;top:0;z-index:20;background:rgba(255,255,255,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px;padding:12px 24px;flex-wrap:wrap;}
+  .brand{display:flex;align-items:center;gap:9px;font-weight:700;font-size:17px;color:var(--navy);}
+  .logo{width:30px;height:30px;border-radius:9px;background:var(--navy);color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;}
+  .logo b{color:var(--orange);font-weight:700;}
+  .navspace{flex:1;}
+  .sm{font-size:12.5px;}
+  input,select,button{font:inherit;}
+  input,select{background:var(--surface);border:1px solid var(--line);color:var(--ink);border-radius:10px;padding:9px 12px;font-size:14px;}
+  input:focus,select:focus{outline:none;border-color:var(--orange);box-shadow:0 0 0 3px rgba(249,115,22,.12);}
+  button{background:var(--navy);border:0;color:#fff;padding:10px 16px;border-radius:10px;cursor:pointer;font-weight:600;font-size:14px;transition:.15s;}
+  button:hover{background:var(--navy2);}
+  button.cta{background:var(--orange);} button.cta:hover{background:var(--orange-d);}
+  button.ghost{background:var(--surface);color:var(--navy);border:1px solid var(--line);font-weight:500;}
+  button.ghost:hover{background:#eef3fa;}
+  button.sm{padding:7px 11px;font-size:13px;}
+  button:disabled{opacity:.45;cursor:not-allowed;}
+  .hero{background:var(--navy);color:#fff;padding:50px 24px 42px;text-align:center;}
+  .hero h1{font-size:34px;font-weight:700;margin:0 0 10px;letter-spacing:-.5px;}
+  .hero p{color:#b9c6dc;font-size:16px;margin:0 auto 24px;max-width:560px;line-height:1.6;}
+  .searchbar{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;max-width:680px;margin:0 auto;}
+  .searchbar input{min-width:240px;flex:1;}
+  main{max-width:1080px;margin:0 auto;padding:24px 24px 50px;}
+  h2.sec{font-size:20px;font-weight:700;color:var(--navy);margin:34px 0 16px;letter-spacing:-.2px;}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:20px;}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:18px;box-shadow:0 1px 2px rgba(11,37,69,.05);}
+  .mcard{transition:transform .18s, box-shadow .18s;}
+  .mcard:hover{transform:translateY(-3px);box-shadow:0 12px 30px rgba(11,37,69,.13);}
+  .pad{padding:20px;}
+  .card img{width:60px;height:60px;border-radius:50%;object-fit:cover;}
+  .mentor-top{display:flex;gap:13px;align-items:center;}
+  .tag{display:inline-block;font-size:11px;background:#eef3fa;color:var(--navy2);padding:4px 10px;border-radius:999px;margin:3px 4px 0 0;font-weight:500;}
+  .stars{color:var(--orange);font-weight:600;font-size:14px;}
+  .price{font-size:22px;font-weight:700;color:var(--navy);}
+  .muted{color:var(--muted);}
+  .slot{background:var(--surface);border:1px solid var(--line);color:var(--ink);margin:5px 5px 0 0;padding:9px 12px;border-radius:11px;cursor:pointer;text-align:left;font-weight:500;display:inline-flex;flex-direction:column;gap:2px;}
+  .slot:hover{border-color:var(--orange);}
+  .slot .you{font-size:14px;color:var(--navy);font-weight:600;}
+  .slot .men{font-size:11px;color:var(--muted);font-weight:400;}
+  .slot.sel{border:2px solid var(--orange);background:var(--orange-soft);}
+  a{color:var(--navy2);}
+  .banner{padding:12px 14px;border-radius:11px;margin-bottom:16px;font-size:14px;}
+  .banner.bad{background:#fdecec;color:#9b1c1c;border:1px solid #f6c9c9;}
+  .banner.ok{background:#e9f7ef;color:#10663a;border:1px solid #bce6cf;}
+  dialog{background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:18px;max-width:500px;width:92%;box-shadow:0 24px 60px rgba(11,37,69,.3);padding:0;}
+  dialog::backdrop{background:rgba(11,37,69,.5);}
+  label{display:block;font-size:13px;color:var(--muted);margin:10px 0 5px;}
+  table.tbl{width:100%;border-collapse:collapse;font-size:13px;background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden;}
+  table.tbl th{background:var(--navy);color:#fff;text-align:left;padding:10px 12px;font-weight:600;font-size:12px;white-space:nowrap;}
+  table.tbl td{padding:9px 12px;border-top:1px solid var(--line);white-space:nowrap;}
+  table.tbl tr:hover td{background:#f7faff;}
+  .spill{font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;}
+  footer{text-align:center;color:var(--muted);font-size:12px;padding:24px;}
+</style>
+</head>
+<body>
+<nav class="nav">
+  <div class="brand"><span class="logo">I<b>G</b></span> Immigroov</div>
+  <div style="display:flex;gap:3px;background:#eef3fa;border-radius:999px;padding:3px;margin-left:6px">
+    <a href="index.html" style="text-decoration:none;background:var(--navy);color:#fff;padding:5px 13px;border-radius:999px;font-size:13px;font-weight:600">Mentee</a>
+    <a href="availability.html" style="text-decoration:none;color:var(--navy);padding:5px 13px;border-radius:999px;font-size:13px;font-weight:600">Mentor</a>
+  </div>
+  <div class="navspace"></div>
+  <label class="muted sm" style="margin:0">Currency</label>
+  <select id="mycur" class="sm" onchange="setCurrency(this.value)" style="padding:7px 10px">
+    <option>USD</option><option>EUR</option><option>GBP</option><option>INR</option>
+    <option>BRL</option><option>AED</option><option>AUD</option><option>CAD</option>
+    <option>SGD</option><option>JPY</option><option>ZAR</option>
+  </select>
+  <span class="muted sm" id="who"></span>
+  <input id="me" class="sm" placeholder="you@email.com" style="width:170px" />
+  <button class="ghost sm" onclick="setMe()">Sign in</button>
+  <span id="tz" style="display:none"></span>
+  <span id="status" style="display:none"></span>
+</nav>
+
+<section class="hero">
+  <h1>Find your immigration mentor</h1>
+  <p>Book a 1:1 video session with vetted experts — in your language, your timezone, and your currency.</p>
+</section>
+
+<main>
+  <div id="msg"></div>
+
+  <h2 class="sec">Available mentors</h2>
+  <div id="mentors" class="grid"></div>
+
+  <h2 class="sec">Your sessions</h2>
+  <div id="bookings"></div>
+
+  <div style="margin-top:36px">
+    <button class="ghost sm" id="adminBtn" onclick="toggleAdmin()">Show admin · all bookings</button>
+    <div id="adminwrap" style="display:none;margin-top:14px"><div id="allbookings" style="overflow-x:auto"></div></div>
+  </div>
+</main>
+<footer>Immigroov demo · test mode (mock payments) · session times shown in your timezone</footer>
+
+<div id="signinbox" style="display:none;position:fixed;right:20px;bottom:20px;z-index:50;background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:0 16px 44px rgba(11,37,69,.22);padding:16px 18px;width:300px">
+  <div style="font-weight:600;color:var(--navy);margin-bottom:3px">Sign in to continue</div>
+  <div class="muted" style="font-size:13px;margin-bottom:10px">Enter your email to book sessions and see your bookings.</div>
+  <div style="display:flex;gap:8px">
+    <input id="me2" placeholder="you@email.com" style="flex:1" onkeydown="if(event.key==='Enter')signInFromBox()" />
+    <button class="cta" onclick="signInFromBox()">Go</button>
+  </div>
+</div>
+
+<dialog id="dlg">
+  <div class="pad">
+    <h3 id="dlgTitle" style="margin:0 0 4px;color:var(--navy)">Book session</h3>
+    <div id="dlgTz" class="muted" style="font-size:12px;margin-bottom:10px"></div>
+    <div id="mentorPanel" style="display:none"></div>
+    <div id="slots"></div>
+    <div class="row" style="margin-top:16px">
+      <button id="confirmBtn" class="cta" disabled onclick="doBook()">Confirm booking</button>
+      <button class="ghost" onclick="document.getElementById('dlg').close()">Close</button>
+    </div>
+    <div id="dlgMsg"></div>
+  </div>
+</dialog>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL = "https://atkulcfyaqcivzxteela.supabase.co";
+const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF0a3VsY2Z5YXFjaXZ6eHRlZWxhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE1MDU3MzQsImV4cCI6MjA5NzA4MTczNH0.oBcBBjUXL26X5FKzpDpi4G-e0wWtCNLrXoHhYdwdJok";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+const TZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
+document.getElementById('tz').textContent = "your tz: " + TZ;
+
+let MY_EMAIL = localStorage.getItem('immigroov_email') || '';
+document.getElementById('me').value = MY_EMAIL;
+updateWho();
+
+const TZ_CCY = {'Asia/Kolkata':'INR','Asia/Calcutta':'INR','Europe/Amsterdam':'EUR','Europe/Paris':'EUR','Europe/Berlin':'EUR','America/Sao_Paulo':'BRL','America/New_York':'USD','America/Los_Angeles':'USD','Europe/London':'GBP','Asia/Dubai':'AED','Australia/Sydney':'AUD','America/Toronto':'CAD','Asia/Singapore':'SGD','Asia/Tokyo':'JPY','Africa/Johannesburg':'ZAR'};
+let MC = localStorage.getItem('immigroov_ccy') || TZ_CCY[TZ] || 'USD';
+let PCT = 15;
+sb.rpc('demo_commission_pct').then(r=>{ if(r && r.data!=null) PCT=Number(r.data); });
+function setCurrency(c){ MC=c; localStorage.setItem('immigroov_ccy',c); loadMentors(); loadBookings(); loadAllBookings(); }
+function refreshSigninBox(){ const el=document.getElementById('signinbox'); if(el) el.style.display = MY_EMAIL ? 'none':'block'; }
+function signInFromBox(){ const v=document.getElementById('me2').value.trim(); if(!v) return; document.getElementById('me').value=v; setMe(); }
+function toggleAdmin(){
+  const w=document.getElementById('adminwrap'), open=w.style.display==='none';
+  w.style.display=open?'block':'none';
+  document.getElementById('adminBtn').textContent=(open?'Hide':'Show')+' admin · all bookings';
+  if(open) loadAllBookings();
+}
+
+const tTime = (iso,tz) => new Intl.DateTimeFormat('en',{timeZone:tz,hour:'2-digit',minute:'2-digit',hour12:true}).format(new Date(iso));
+const tDate = (iso,tz) => new Intl.DateTimeFormat('en',{timeZone:tz,weekday:'short',month:'short',day:'numeric'}).format(new Date(iso));
+const offset = (iso,tz) => { if(tz==='UTC') return '+00:00';
+  const p = new Intl.DateTimeFormat('en',{timeZone:tz,timeZoneName:'shortOffset'}).formatToParts(new Date(iso)).find(x=>x.type==='timeZoneName');
+  return p ? (p.value.replace('GMT','')||'+00:00') : ''; };
+const money = (a,c) => new Intl.NumberFormat('en',{style:'currency',currency:c||'USD'}).format(a);
+const fxCache = {};
+async function fx(from,to){
+  if(!from||!to||from===to) return { rate:1, date:null };
+  const k=from+'>'+to; if(fxCache[k]) return fxCache[k];
+  try{
+    const res=await fetch(`https://api.frankfurter.dev/v2/rates?base=${from}&quotes=${to}`);
+    const j=await res.json();
+    const row=Array.isArray(j)?j.find(x=>x.quote===to):null;
+    fxCache[k]={ rate: row?row.rate:(j&&j.rates?j.rates[to]:1), date: row?row.date:(j&&j.date?j.date:null) };
+  }catch(e){ fxCache[k]={ rate:1, date:null }; }
+  return fxCache[k];
+}
+async function convert(amount,from,to){ if(amount==null) return null; const f=await fx(from,to); return amount*f.rate; }
+const fxDateFmt = d => d ? new Date(d).toLocaleDateString('en',{day:'numeric',month:'short',year:'numeric'}) : '';
+const fxNote = (from,to,f) => (!f || from===to || f.rate===1) ? '' :
+  `1 ${from} = ${f.rate.toFixed(4)} ${to}${f.date?' · as of '+fxDateFmt(f.date):''}`;
+const msg = (html,cls='ok') => document.getElementById('msg').innerHTML = `<div class="banner ${cls}">${html}</div>`;
+function updateWho(){ document.getElementById('who').textContent = MY_EMAIL ? "you: "+MY_EMAIL : "set your email"; }
+
+const TZ_LOCATION = {
+  'Asia/Kolkata':'India', 'Asia/Calcutta':'India',
+  'Europe/Amsterdam':'Netherlands', 'America/Sao_Paulo':'Brazil',
+  'America/New_York':'United States', 'America/Los_Angeles':'United States',
+  'Europe/London':'United Kingdom', 'Australia/Sydney':'Australia',
+  'Asia/Dubai':'United Arab Emirates', 'Asia/Singapore':'Singapore'
+};
+function mentorLocation(tz){
+  const country = TZ_LOCATION[tz] || '';
+  const city = (tz||'').split('/').pop().replace(/_/g,' ');
+  return country ? `${city}, ${country}` : city;
+}
+
+let selected = { mentor:null, service:null, slot:null, mentorTz:'UTC' };
+
+function setMe(){
+  const v = document.getElementById('me').value.trim();
+  if(!v){ msg('Enter an email to act as your identity.','bad'); return; }
+  MY_EMAIL = v; localStorage.setItem('immigroov_email', v); updateWho(); refreshSigninBox();
+  msg('Signed in as <b>'+v+'</b>.'); loadBookings();
+}
+
+async function loadMentors() {
+  const qEl = document.getElementById('q'), sortEl = document.getElementById('sort');
+  const { data, error } = await sb.rpc('search_mentors', {
+    p_search: (qEl && qEl.value) || null,
+    p_country_code: null, p_sort: (sortEl && sortEl.value) || 'rating' });
+  const box = document.getElementById('mentors');
+  if (error) { box.innerHTML = `<div class="banner bad">${error.message}</div>`; return; }
+  for(const m of data){ m._approx = await convert(m.min_price, m.currency, MC); }
+  box.innerHTML = data.map(m => `
+    <div class="card mcard pad">
+      <div class="mentor-top">
+        <img src="${m.profile_pic_url||'https://i.pravatar.cc/150'}" />
+        <div>
+          <div style="font-weight:600;color:var(--navy)">${m.name||'Mentor'}</div>
+          <div class="muted" style="font-size:13px">${m.title||''}</div>
+          <div class="stars">★ ${Number(m.avg_rating).toFixed(1)} <span class="muted" style="font-weight:400">(${m.review_count})</span></div>
+        </div>
+      </div>
+      <div class="muted" style="font-size:12.5px;margin-top:10px;display:flex;align-items:center;gap:6px">
+        <span style="color:var(--orange)">◍</span>${mentorLocation(m.mentor_tz)} <span style="color:#cbd5e1">·</span> ${m.mentor_tz}
+      </div>
+      <div style="margin:10px 0">${(m.specializations||[]).map(s=>`<span class="tag">${s}</span>`).join('')}</div>
+      <div class="muted" style="font-size:12px">${(m.languages||[]).join(' · ')}</div>
+      <div class="row" style="justify-content:space-between;margin:14px 0 0">
+        <div>
+          ${m._approx!=null&&m.currency!==MC
+            ? `<div style="font-size:20px;font-weight:700;color:var(--orange-d)">≈ ${money(m._approx,MC)}<span class="muted" style="font-size:12px;font-weight:400"> for you</span></div>
+               <div class="muted" style="font-size:12px">${m.min_price!=null?money(m.min_price,m.currency):'—'} (${m.currency}) /from</div>`
+            : `<span class="price">${m.min_price!=null?money(m.min_price,m.currency):'—'}</span><span class="muted" style="font-size:12px;font-weight:400">/from</span>`}
+        </div>
+        <button class="cta" onclick='openMentor(${JSON.stringify(m).replace(/'/g,"&#39;")})'>View services</button>
+      </div>
+    </div>`).join('') || '<p class="muted">No mentors match.</p>';
+}
+
+async function openMentor(m) {
+  selected = { mentor:m, service:null, slot:null, mentorTz:'UTC' };
+  document.getElementById('dlgTitle').textContent = `Book with ${m.name}`;
+  document.getElementById('confirmBtn').disabled = true;
+  document.getElementById('dlgMsg').innerHTML='';
+  const { data:mt } = await sb.from('mentors').select('app_timezone').eq('id', m.mentor_id).single();
+  selected.mentorTz = (mt && mt.app_timezone) || 'UTC';
+  document.getElementById('dlgTz').innerHTML =
+    `Your timezone <b>${TZ}</b> &nbsp;·&nbsp; Mentor timezone <b>${selected.mentorTz}</b>`;
+  const mp = document.getElementById('mentorPanel'); if(mp) mp.innerHTML='';
+  const { data:services } = await sb.from('services')
+    .select('id,title,description,duration,type,set_price,platform_fee,set_currency').eq('mentor_id', m.mentor_id).eq('is_active', true);
+  for(const s of (services||[])){
+    s._total = (Number(s.set_price)||0) + (Number(s.platform_fee)||0);
+    const f = await fx(s.set_currency||'USD', MC);
+    s._you = s._total * f.rate;
+  }
+  document.getElementById('slots').innerHTML =
+    `<label>Choose a service</label>` +
+    (services||[]).map(s=>`
+      <div onclick='pickService(${JSON.stringify(s).replace(/'/g,"&#39;")})'
+           style="border:1px solid var(--line);border-radius:12px;padding:13px 15px;margin-bottom:8px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px">
+        <div>
+          <div style="font-weight:600;color:var(--navy)">${s.title}</div>
+          <div class="muted" style="font-size:12px">${s.duration} min · ${s.type==='video'?'Video call':'DM'}${s.description?' · '+s.description:''}</div>
+        </div>
+        <div style="text-align:right;white-space:nowrap">
+          <div style="font-weight:700;color:var(--orange-d)">≈ ${money(s._you,MC)}</div>
+          <div class="muted" style="font-size:11px">${money(s._total,s.set_currency)} ${s.set_currency}</div>
+        </div>
+      </div>`).join('') || '<p class="muted">This mentor has no active services yet.</p>';
+  document.getElementById('dlg').showModal();
+}
+
+const WEEKDAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+async function renderMentorPanel(mentorId){
+  const [{ data:list }, { data:wk }] = await Promise.all([
+    sb.rpc('demo_list_slots', { p_mentor_id: mentorId }),
+    sb.rpc('demo_list_weekly', { p_mentor_id: mentorId })
+  ]);
+  const activeDays = new Set((wk||[]).map(w=>w.weekday));
+  const weeklyRows = (wk||[]).map(w=>`
+    <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;padding:5px 0;border-bottom:1px solid #f0dcc8">
+      <span><b>${w.weekday}</b> · ${String(w.start_time).slice(0,5)}–${String(w.end_time).slice(0,5)} <span class="muted">(${w.timezone})</span></span>
+      <button class="ghost" style="padding:3px 9px;font-size:11px" onclick="clearWeekday('${w.weekday}')">Clear</button>
+    </div>`).join('') || '<div class="muted" style="font-size:12px">No weekly hours set.</div>';
+  const dayChips = WEEKDAYS.map(d=>`
+    <label style="display:inline-flex;align-items:center;gap:5px;font-size:12px;margin:0;background:#fff;border:1px solid #f6d2b3;border-radius:8px;padding:5px 9px;cursor:pointer">
+      <input type="checkbox" class="wkday" value="${d}" ${activeDays.has(d)?'checked':''} style="margin:0;width:auto"> ${d.slice(0,3)}
+    </label>`).join('');
+  const rows = (list||[]).map(w=>`
+    <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;padding:6px 0;border-bottom:1px solid #f0dcc8">
+      <span>${w.slot_date} · ${String(w.start_time).slice(0,5)}–${String(w.end_time).slice(0,5)}
+        <span class="muted">(${w.timezone})</span>${w.is_booked?' · <span style="color:var(--bad)">booked</span>':''}</span>
+      <button class="ghost" style="padding:3px 9px;font-size:11px" onclick="removeSlot('${w.id}')">Remove</button>
+    </div>`).join('') || '<div class="muted" style="font-size:12px">No one-off day-slots.</div>';
+
+  document.getElementById('mentorPanel').innerHTML =
+    `<div style="background:var(--orange-soft);border:1px solid #f6d2b3;border-radius:12px;padding:13px 15px">
+       <div style="font-size:13px;font-weight:600;color:var(--orange-d);margin-bottom:8px">Mentor panel — availability (saved in ${selected.mentorTz})</div>
+
+       <div style="font-size:12px;font-weight:600;color:var(--navy);margin:2px 0 6px">Weekly hours (recurring)</div>
+       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">${dayChips}</div>
+       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+         <input type="time" id="wkStart" value="09:00" />
+         <span class="muted">to</span>
+         <input type="time" id="wkEnd" value="17:00" />
+         <button class="cta" style="padding:9px 13px" onclick="setWeekly()">Apply to selected days</button>
+         <button class="ghost" style="padding:9px 13px" onclick="allDays(true)">Select whole week</button>
+       </div>
+       <div style="margin:8px 0 14px">${weeklyRows}</div>
+
+       <div style="font-size:12px;font-weight:600;color:var(--navy);margin:0 0 6px">One-off day (overrides/extra)</div>
+       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+         <input type="date" id="avDate" />
+         <input type="time" id="avStart" value="09:00" />
+         <span class="muted">to</span>
+         <input type="time" id="avEnd" value="17:00" />
+         <button class="cta" style="padding:9px 13px" onclick="addSlot()">Add day</button>
+       </div>
+       <div style="margin-top:8px">${rows}</div>
+     </div>`;
+  const di=document.getElementById('avDate'); if(di && !di.value) di.value=new Date().toISOString().slice(0,10);
+}
+function allDays(check){ document.querySelectorAll('.wkday').forEach(c=>c.checked=check); }
+async function setWeekly(){
+  const days=[...document.querySelectorAll('.wkday:checked')].map(c=>c.value);
+  if(!days.length){ alert('Select at least one weekday.'); return; }
+  const st=document.getElementById('wkStart').value, en=document.getElementById('wkEnd').value;
+  if(en<=st){ alert('End must be after start.'); return; }
+  const { error } = await sb.rpc('demo_set_weekly', { p_mentor_id: selected.mentor.mentor_id, p_start: st, p_end: en, p_days: days });
+  if(error){ alert(error.message); return; }
+  await renderMentorPanel(selected.mentor.mentor_id);
+  if(selected.service) pickService(selected.service);
+}
+async function clearWeekday(day){
+  const { error } = await sb.rpc('demo_clear_weekday', { p_mentor_id: selected.mentor.mentor_id, p_day: day });
+  if(error){ alert(error.message); return; }
+  await renderMentorPanel(selected.mentor.mentor_id);
+  if(selected.service) pickService(selected.service);
+}
+async function addSlot(){
+  const date=document.getElementById('avDate').value, st=document.getElementById('avStart').value, en=document.getElementById('avEnd').value;
+  if(!date||!st||!en){ alert('Pick a date, start and end time.'); return; }
+  if(en<=st){ alert('End time must be after start time.'); return; }
+  const { error } = await sb.rpc('demo_add_slot', { p_mentor_id: selected.mentor.mentor_id, p_date: date, p_start: st, p_end: en });
+  if(error){ alert(error.message); return; }
+  await renderMentorPanel(selected.mentor.mentor_id);
+  if(selected.service) pickService(selected.service);
+}
+async function removeSlot(id){
+  const { error } = await sb.rpc('demo_remove_slot', { p_id: id });
+  if(error){ alert(error.message); return; }
+  await renderMentorPanel(selected.mentor.mentor_id);
+  if(selected.service) pickService(selected.service);
+}
+
+async function pickService(s) {
+  selected.service = s; selected.slot = null;
+  document.getElementById('confirmBtn').disabled = true;
+  const from = new Date().toISOString().slice(0,10);
+  const to = new Date(Date.now()+14*864e5).toISOString().slice(0,10);
+  const { data:slots, error } = await sb.rpc('get_available_slots', {
+    p_mentor_id: selected.mentor.mentor_id, p_service_id: s.id, p_from: from, p_to: to });
+  const box = document.getElementById('slots');
+  if (error) { box.innerHTML = `<div class="banner bad">${error.message}</div>`; return; }
+  const setCur = s.set_currency||'USD';
+  const sp = Number(s.set_price)||0;
+  const fee = Math.round(sp*PCT/100*100)/100;
+  const total = sp + fee;
+  const f = await fx(setCur, MC);
+  const youPay = total*f.rate;
+  const priceLine = `<div style="background:#eef3fb;border:1px solid #d6e0ef;border-radius:10px;padding:9px 12px;margin:0 0 10px;font-size:13px">
+      Mentor's price <b>${money(sp,setCur)}</b> + platform fee (${PCT}%) ${money(fee,setCur)} = ${money(total,setCur)}
+      &nbsp;→&nbsp; <b style="color:var(--orange-d)">you pay ≈ ${money(youPay,MC)}</b> ${setCur!==MC?`<span class="muted">(${fxNote(setCur,MC,f)})</span>`:''}</div>`;
+  const top = (slots||[]).slice(0,12);
+  box.innerHTML = priceLine + `<label>${s.title} — your time (mentor's time shown below each)</label>` +
+    (top.map(sl=>`<button class="slot" onclick='pickSlot("${sl.slot_start}", this)'>
+        <span class="you">${tTime(sl.slot_start,TZ)} · ${tDate(sl.slot_start,TZ)}</span>
+        <span class="men">mentor ${tTime(sl.slot_start,selected.mentorTz)}</span>
+      </button>`).join('')
+     || '<p class="muted">No open slots in the next 14 days.</p>');
+}
+
+function pickSlot(iso, el) {
+  selected.slot = iso;
+  document.querySelectorAll('.slot').forEach(b=>b.classList.remove('sel'));
+  el.classList.add('sel');
+  document.getElementById('confirmBtn').disabled = false;
+}
+
+async function doBook() {
+  if(!MY_EMAIL){ const v=document.getElementById('me').value.trim(); if(v){MY_EMAIL=v;localStorage.setItem('immigroov_email',v);updateWho();} }
+  if(!MY_EMAIL){ document.getElementById('dlgMsg').innerHTML = `<div class="banner bad">Enter your email at the top of the page first.</div>`; return; }
+  const btn = document.getElementById('confirmBtn'); btn.disabled = true;
+  const svc = selected.service, setCur = svc.set_currency||'USD';
+  const sp = Number(svc.set_price)||0;
+  const total = sp + Math.round(sp*PCT/100*100)/100;
+  const f = await fx(setCur, MC);
+  const cost = total * f.rate;
+  const { data, error } = await sb.rpc('demo_book_and_pay', {
+    p_mentor_id: selected.mentor.mentor_id, p_service_id: svc.id,
+    p_slot_time: selected.slot, p_email: MY_EMAIL, p_name: MY_EMAIL.split('@')[0],
+    p_timezone: TZ, p_mentee_currency: MC, p_mentee_cost: cost });
+  const dm = document.getElementById('dlgMsg');
+  if (error) { dm.innerHTML = `<div class="banner bad">${error.message}</div>`; btn.disabled=false; return; }
+  const r = data[0];
+  const note = fxNote(r.mentor_currency, r.mentee_currency, f);
+  dm.innerHTML = `<div class="banner ok">Booked &amp; paid (mock).<br>
+     <b>Your time:</b> ${tTime(selected.slot,TZ)} · ${tDate(selected.slot,TZ)} (${TZ})<br>
+     <b>Mentor time:</b> ${tTime(selected.slot,selected.mentorTz)} (${selected.mentorTz})<br>
+     <b>You pay:</b> ${money(r.mentee_cost,r.mentee_currency)} <span class="muted">(${r.mentee_currency})</span><br>
+     <b>Mentor earns:</b> ${money(r.mentor_earn,r.mentor_currency)} <span class="muted">(${r.mentor_currency} — set price; platform fee ${money(r.platform_fee,r.mentor_currency)})</span>
+     ${note?`<br><span class="muted" style="font-size:12px">FX rate ${note}</span>`:''}</div>`;
+  loadBookings(); loadAllBookings();
+  setTimeout(()=>document.getElementById('dlg').close(), 3500);
+}
+
+const STATUS_COLORS = { confirmed:'var(--ok)', completed:'var(--navy2)', rescheduled:'var(--amber)', cancelled:'var(--bad)', no_show:'var(--bad)', pending:'var(--muted)' };
+
+function clockRow(iso, role, tz, dot) {
+  return `<div style="display:flex;justify-content:space-between;align-items:center;padding:11px 18px;border-top:1px solid var(--line)">
+    <div style="display:flex;align-items:center;gap:10px">
+      <span style="width:9px;height:9px;border-radius:50%;background:${dot};display:inline-block;flex:none"></span>
+      <div><div style="font-size:13px;font-weight:600;color:var(--navy)">${role}</div>
+        <div class="muted" style="font-size:11px">${tz} · GMT${offset(iso,tz)}</div></div>
+    </div>
+    <div style="text-align:right">
+      <div style="font-family:ui-monospace,monospace;font-size:17px;font-weight:600;color:var(--navy)">${tTime(iso,tz)}</div>
+      <div class="muted" style="font-size:11px">${tDate(iso,tz)}</div>
+    </div>
+  </div>`;
+}
+
+async function loadBookings() {
+  const box = document.getElementById('bookings');
+  if(!MY_EMAIL){ box.innerHTML = '<p class="muted">Sign in (top right) to see your sessions.</p>'; renderTzExplainer(null); return; }
+  const { data, error } = await sb.rpc('demo_my_bookings', { p_email: MY_EMAIL });
+  if (error) { box.innerHTML = `<div class="banner bad">${error.message}</div>`; return; }
+  if (!data.length) { box.innerHTML = '<p class="muted">No bookings yet — book one above.</p>'; renderTzExplainer(null); return; }
+  renderTzExplainer(data);
+  for(const b of data){ b._fx = await fx(b.mentor_currency, b.cost_currency); }
+  box.innerHTML = `<div class="grid">` + data.map(b=>{
+    const sc = STATUS_COLORS[b.status]||'var(--muted)';
+    const closed = ['cancelled','completed','no_show'].includes(b.status);
+    const iso = b.slot_time;
+    return `<div class="card" style="overflow:hidden">
+      <div class="pad" style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
+        <div>
+          <div style="font-weight:600;font-size:15px;color:var(--navy)">${b.service_title||'Session'}</div>
+          <div class="muted" style="font-size:13px">${b.mentor_name||''}${b.mentor_title?' · '+b.mentor_title:''}</div>
+        </div>
+        <span style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:${sc};border:1px solid ${sc};padding:3px 9px;border-radius:999px;white-space:nowrap">${b.status}</span>
+      </div>
+      ${clockRow(iso,'You (mentee)', b.customer_tz, 'var(--orange)')}
+      ${clockRow(iso,'Mentor', b.mentor_tz, 'var(--navy)')}
+      ${clockRow(iso,'UTC (stored)', 'UTC', '#94a3b8')}
+      <div style="display:flex;justify-content:space-between;gap:12px;padding:11px 18px;border-top:1px solid var(--line);font-size:12px">
+        <div><div class="muted">You pay</div><div style="font-weight:600;color:var(--navy)">${b.cost!=null?money(b.cost,b.cost_currency):'—'}</div></div>
+        <div style="text-align:right"><div class="muted">Mentor earns</div>
+          <div style="font-weight:600;color:var(--orange-d)">${b.mentor_earn!=null?money(b.mentor_earn,b.mentor_currency):'—'}</div>
+          ${fxNote(b.mentor_currency,b.cost_currency,b._fx)?`<div class="muted" style="font-size:10px">${fxNote(b.mentor_currency,b.cost_currency,b._fx)}</div>`:''}
+        </div>
+      </div>
+      <div class="pad" style="display:flex;gap:10px;align-items:center;border-top:1px solid var(--line)">
+        ${b.meeting_url?`<a href="${b.meeting_url}" target="_blank" style="text-decoration:none;background:var(--orange);color:#fff;padding:9px 15px;border-radius:9px;font-size:13px;font-weight:500">Join video call</a>`:''}
+        ${closed?'':`<button class="ghost" onclick="cancelBooking(${b.id})">Cancel</button>`}
+      </div>
+    </div>`;
+  }).join('') + `</div>`;
+}
+
+async function cancelBooking(id) {
+  const { error } = await sb.rpc('demo_cancel', { p_booking_id:id });
+  if (error) alert(error.message); else { loadBookings(); loadAllBookings(); }
+}
+
+async function loadAllBookings(){
+  const { data, error } = await sb.rpc('demo_all_bookings');
+  const box = document.getElementById('allbookings');
+  if(error){ box.innerHTML = `<div class="banner bad">${error.message}</div>`; return; }
+  if(!data.length){ box.innerHTML = '<p class="muted">No bookings yet.</p>'; return; }
+  for(const b of data){ b._fx = await fx(b.mentor_currency, b.cost_currency); }
+  const fxDate = (data.find(b=>b._fx&&b._fx.date)||{})._fx;
+  const cell = (iso,tz) => `${tTime(iso,tz)}<br><span class="muted" style="font-size:11px">${tDate(iso,tz)}</span>`;
+  box.innerHTML = `<div class="muted" style="font-size:12px;margin-bottom:8px">Cost in mentee currency · mentor earnings converted to mentor currency via Frankfurter${fxDate&&fxDate.date?` · rates as of ${fxDateFmt(fxDate.date)}`:''}</div>
+  <table class="tbl">
+    <thead><tr>
+      <th>#</th><th>Mentee</th><th>Mentor</th><th>Service</th><th>Status</th>
+      <th>UTC</th><th>Mentee time</th><th>Mentor time</th><th>Cost (mentee)</th><th>Mentor earns</th><th>Platform fee (${PCT}%)</th><th>Video</th>
+    </tr></thead><tbody>` +
+    data.map(b=>{
+      const sc = STATUS_COLORS[b.status]||'var(--muted)';
+      return `<tr>
+        <td class="muted">${b.id}</td>
+        <td>${b.mentee_email}</td>
+        <td>${b.mentor_name||''}</td>
+        <td>${b.service_title||''}</td>
+        <td><span class="spill" style="color:${sc};border:1px solid ${sc}">${b.status}</span></td>
+        <td>${cell(b.slot_time,'UTC')}</td>
+        <td>${cell(b.slot_time,b.customer_tz)}<br><span class="muted" style="font-size:10px">${b.customer_tz}</span></td>
+        <td>${cell(b.slot_time,b.mentor_tz)}<br><span class="muted" style="font-size:10px">${b.mentor_tz}</span></td>
+        <td>${b.cost!=null?money(b.cost,b.cost_currency):'—'}<br><span class="muted" style="font-size:10px">${b.cost_currency||''}</span></td>
+        <td style="color:var(--orange-d);font-weight:600" title="${fxNote(b.mentor_currency,b.cost_currency,b._fx)}">${b.mentor_earn!=null?money(b.mentor_earn,b.mentor_currency):'—'}<br><span class="muted" style="font-size:10px;font-weight:400">${b.mentor_currency||''}</span></td>
+        <td style="color:var(--navy2)">${b.mentor_earn!=null?money(Math.round(b.mentor_earn*PCT/100*100)/100,b.mentor_currency):'—'}</td>
+        <td>${b.meeting_url?`<a href="${b.meeting_url}" target="_blank">join</a>`:'—'}</td>
+      </tr>`;
+    }).join('') + `</tbody></table>`;
+}
+
+function step(n, color, title, big, sub){
+  return `<div style="flex:1;min-width:170px;background:${color.bg};border:1px solid ${color.bd};border-radius:12px;padding:14px 16px">
+    <div style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:${color.fg}">Step ${n}</div>
+    <div style="font-size:13px;font-weight:600;color:var(--navy);margin:4px 0 8px">${title}</div>
+    <div style="font-family:ui-monospace,monospace;font-size:18px;font-weight:700;color:${color.fg}">${big}</div>
+    <div class="muted" style="font-size:11px;margin-top:2px">${sub}</div>
+  </div>`;
+}
+function arrow(){ return `<div style="display:flex;align-items:center;color:var(--orange);font-size:20px;font-weight:700">→</div>`; }
+
+function renderTzExplainer(bookings){
+  if(!document.getElementById('tzexplain')) return;
+  let mentorTz='Europe/Amsterdam', menteeTz=TZ, iso, mentorName='your mentor';
+  if(bookings && bookings.length){
+    const b=bookings[0]; mentorTz=b.mentor_tz||mentorTz; menteeTz=b.customer_tz||TZ; iso=b.slot_time; mentorName=b.mentor_name||'your mentor';
+  } else {
+    const d=new Date(); d.setUTCDate(d.getUTCDate()+1); d.setUTCHours(10,0,0,0); iso=d.toISOString();
+  }
+  const navy={bg:'#eef3fb',bd:'#d6e0ef',fg:'var(--navy)'};
+  const orange={bg:'var(--orange-soft)',bd:'#f6d2b3',fg:'var(--orange-d)'};
+  const box=document.getElementById('tzexplain');
+  box.innerHTML =
+    `<div style="display:flex;flex-wrap:wrap;gap:12px;align-items:stretch;margin-bottom:16px">
+       ${step(1, navy, `${mentorName} sets availability in their timezone`, tTime(iso,mentorTz), `${mentorTz} (GMT${offset(iso,mentorTz)}) · ${tDate(iso,mentorTz)}`)}
+       ${arrow()}
+       ${step(2, orange, 'We store it as ONE moment in UTC', tTime(iso,'UTC'), `UTC · ${tDate(iso,'UTC')} — the single source of truth`)}
+       ${arrow()}
+       ${step(3, navy, 'You see that moment on your own clock', tTime(iso,menteeTz), `${menteeTz} (GMT${offset(iso,menteeTz)}) · ${tDate(iso,menteeTz)}`)}
+     </div>
+     <p style="font-size:14px;line-height:1.7;margin:0;color:var(--ink)">
+       It is the <b>same instant</b> for both of you — only the label on the clock differs.
+       The mentor's <b>${tTime(iso,mentorTz)}</b> and your <b>${tTime(iso,menteeTz)}</b> are the exact same moment.
+       Because we store the real timezone (not a fixed offset), <b>daylight saving is handled automatically</b> —
+       in winter the mentor's local time can shift by an hour while yours stays put, and the booking still points to the same moment.
+     </p>`;
+}
+
+document.getElementById('mycur').value = MC;
+refreshSigninBox();
+loadMentors();
+loadBookings();
+loadAllBookings();
+renderTzExplainer(null);
+</script>
+</body>
+</html>

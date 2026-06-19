@@ -1,0 +1,23 @@
+# dependencies
+node_modules/
+web/node_modules/
+
+# next.js
+web/.next/
+web/out/
+web/next-env.d.ts
+
+# env / secrets
+.env
+.env.*
+!.env.local.example
+web/.env.local
+
+# logs & os
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+
+# supabase cli local state
+supabase/.temp/
