@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { money, myTz, fmtTime, fmtDate } from "@/lib/format";
+import { getEmail } from "@/lib/identity";
 
 type B = {
   id: number; status: string; slot_time: string; meeting_url: string | null;
@@ -14,17 +15,14 @@ export default function Bookings() {
   const supabase = createClient();
   const tz = myTz();
   const [rows, setRows] = useState<B[]>([]);
-  const [signedIn, setSignedIn] = useState<boolean | null>(null);
+  const [email, setEmail] = useState<string | null | undefined>(undefined);
 
-  async function load() {
-    const { data: u } = await supabase.auth.getUser();
-    setSignedIn(!!u.user);
-    if (!u.user) return;
-    const { data } = await supabase.rpc("my_bookings");
+  async function load(e: string) {
+    const { data } = await supabase.rpc("bookings_by_email", { p_email: e });
     setRows((data || []) as B[]);
   }
-  useEffect(() => { load(); }, []);
-  async function cancel(id: number) { await supabase.rpc("cancel_booking", { p_booking_id: id, p_cancelled_by: "user" }); load(); }
+  useEffect(() => { const e = getEmail(); setEmail(e); if (e) load(e); }, []);
+  async function cancel(id: number) { await supabase.rpc("cancel_booking", { p_booking_id: id, p_cancelled_by: "user" }); if (email) load(email); }
 
   const now = Date.now();
   const upcoming = rows.filter((b) => new Date(b.slot_time).getTime() >= now && !["cancelled", "completed", "no_show"].includes(b.status));
@@ -34,8 +32,8 @@ export default function Bookings() {
     <div className="container">
       <div className="section-head"><h2 className="sec">Your sessions</h2></div>
 
-      {signedIn === false && <div className="empty"><div className="ico">🔑</div>Sign in or book a session to see your bookings.<br /><Link href="/" className="btn btn-cta" style={{ marginTop: 14 }}>Browse mentors</Link></div>}
-      {signedIn && rows.length === 0 && <div className="empty"><div className="ico">📅</div>No bookings yet.<br /><Link href="/" className="btn btn-cta" style={{ marginTop: 14 }}>Find a mentor</Link></div>}
+      {email === null && <div className="empty"><div className="ico">🔑</div>Sign in with your email to see your sessions.<br /><Link href="/login" className="btn btn-cta" style={{ marginTop: 14 }}>Sign in</Link></div>}
+      {email && rows.length === 0 && <div className="empty"><div className="ico">📅</div>No bookings under {email} yet.<br /><Link href="/" className="btn btn-cta" style={{ marginTop: 14 }}>Find a mentor</Link></div>}
 
       {upcoming.length > 0 && <h3 style={{ fontSize: 15, color: "var(--muted)", margin: "8px 0 14px" }}>Upcoming</h3>}
       <div className="grid">{upcoming.map((b, i) => <Card key={b.id} b={b} tz={tz} i={i} onCancel={cancel} />)}</div>

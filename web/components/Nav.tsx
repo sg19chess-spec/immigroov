@@ -1,24 +1,17 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
+import { getEmail, clearEmail } from "@/lib/identity";
 
 export default function Nav() {
-  const supabase = createClient();
-  const [email, setEmail] = useState<string | null>(null);
-  const [anon, setAnon] = useState(false);
-
+  const [email, setEmailS] = useState<string | null>(null);
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      setEmail(data.user?.email ?? null);
-      setAnon(!!data.user?.is_anonymous);
-    });
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
-      setEmail(s?.user?.email ?? null);
-      setAnon(!!s?.user?.is_anonymous);
-    });
-    return () => sub.subscription.unsubscribe();
-  }, [supabase]);
+    const sync = () => setEmailS(getEmail());
+    sync();
+    window.addEventListener("ig-auth", sync);
+    window.addEventListener("storage", sync);
+    return () => { window.removeEventListener("ig-auth", sync); window.removeEventListener("storage", sync); };
+  }, []);
 
   return (
     <nav className="nav">
@@ -27,16 +20,12 @@ export default function Nav() {
       <Link href="/bookings">My sessions</Link>
       <Link href="/dashboard">Mentor</Link>
       {email ? (
-        <span className="muted" style={{ fontSize: 13 }}>{email}</span>
-      ) : anon ? (
-        <span className="muted" style={{ fontSize: 13 }}>guest</span>
-      ) : null}
-      {(email || anon) ? (
-        <button className="btn-ghost" onClick={async () => { await supabase.auth.signOut(); location.href = "/"; }}>
-          Sign out
-        </button>
+        <>
+          <span className="muted" style={{ fontSize: 13 }}>{email}</span>
+          <button className="btn-ghost btn-sm" onClick={() => { clearEmail(); location.href = "/"; }}>Sign out</button>
+        </>
       ) : (
-        <Link href="/login" className="btn btn-cta" style={{ padding: "8px 14px" }}>Sign in</Link>
+        <Link href="/login" className="btn btn-cta btn-sm">Sign in</Link>
       )}
     </nav>
   );
