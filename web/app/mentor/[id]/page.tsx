@@ -65,7 +65,7 @@ export default function MentorPage({ params }: { params: { id: string } }) {
     const f = await fx(svc.set_currency || "USD", mc);
     const cost = (svc.total || 0) * f.rate;
     const ans = questions.map((q) => ({ question_id: q.id, answer_text: answers[q.id] || "" }));
-    const { error } = await supabase.rpc("book_session", { p_mentor_id: mentorId, p_service_id: svc.id, p_slot_time: slot, p_mentee_currency: mc, p_mentee_cost: cost, p_answers: ans });
+    const { error } = await supabase.rpc("book_session", { p_mentor_id: mentorId, p_service_id: svc.id, p_slot_time: slot, p_mentee_currency: mc, p_mentee_cost: cost, p_answers: ans, p_timezone: tz });
     setBusy(false);
     if (error) { setMsg({ t: error.message, ok: false }); return; }
     setMsg({ t: `Booked! ${fmtDate(slot, tz)}, ${fmtTime(slot, tz)} (your time). See "My sessions".`, ok: true });
