@@ -38,7 +38,7 @@ export default function Nav() {
 
   return (
     <nav className="nav" style={{ transform: hidden ? "translateY(-110%)" : "translateY(0)", transition: "transform .25s ease" }}>
-      <Link href="/" className="brand"><span className="logo">I<b>G</b></span> <span className="hide-mobile">Immigroov</span></Link>
+      <Link href="/" className="brand"><span className="logo">I<b>G</b></span> Immigroov</Link>
 
       <div style={{ display: "inline-flex", background: "var(--navy-soft)", border: "1px solid var(--line)", borderRadius: 999, padding: 4, gap: 4 }} title="Switch view">
         <Link href="/" style={seg(!isMentor)}>Mentee</Link>
