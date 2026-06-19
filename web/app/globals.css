@@ -201,4 +201,6 @@ label.fld { display: block; font-size: 12.5px; color: var(--muted); font-weight:
   input, select, button, .btn { min-height: 44px; }   /* comfortable tap targets */
   .cal-grid { gap: 5px; } .cal-day { font-size: 13px; border-radius: 9px; }
   .slotgrid { grid-template-columns: repeat(auto-fill, minmax(80px,1fr)); }
+  .hide-mobile { display: none !important; }
+  .nav { padding: 10px 14px; gap: 9px; }
 }
