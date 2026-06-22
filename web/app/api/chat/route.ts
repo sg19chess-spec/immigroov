@@ -278,20 +278,21 @@ export async function POST(req: Request) {
       mentors: [],
     });
   } catch (e: any) {
-    const status = e?.status || e?.response?.status;
-    if (status === 401) {
-      return Response.json({ error: "AI assistant auth failed (check OPENROUTER_API_KEY)." }, { status: 503 });
-    }
-    if (status === 429) {
+    const status = e?.status ?? e?.response?.status;
+    const detail =
+      e?.error?.message || e?.response?.data?.error?.message || e?.message || String(e);
+    console.error("[/api/chat]", status, detail);
+    if (status === 401)
+      return Response.json({ error: "AI assistant auth failed — check OPENROUTER_API_KEY.", detail }, { status: 503 });
+    if (status === 429)
+      return Response.json({ error: "The assistant is busy right now — please try again shortly.", detail }, { status: 429 });
+    if (status === 402)
+      return Response.json({ error: "OpenRouter reports insufficient credit for this model.", detail }, { status: 502 });
+    if (status === 404)
       return Response.json(
-        { error: "The assistant is busy right now — please try again in a moment." },
-        { status: 429 }
+        { error: `Model "${OPENROUTER_MODEL}" isn't available on your OpenRouter account. Set OPENROUTER_MODEL to one you can use.`, detail },
+        { status: 502 }
       );
-    }
-    console.error("[/api/chat]", e);
-    return Response.json(
-      { error: "Something went wrong reaching the assistant." },
-      { status: 500 }
-    );
+    return Response.json({ error: "Something went wrong reaching the assistant.", detail }, { status: 500 });
   }
 }

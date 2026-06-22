@@ -96,7 +96,12 @@ export default function ChatWidget() {
         ...m,
         res.ok
           ? { role: "assistant", content: data.reply, mentors: data.mentors || [] }
-          : { role: "assistant", content: data?.error || "Sorry, something went wrong." },
+          : {
+              role: "assistant",
+              content:
+                (data?.error || "Sorry, something went wrong.") +
+                (data?.detail ? `\n\n\`${data.detail}\`` : ""),
+            },
       ]);
     } catch {
       setMsgs((m) => [...m, { role: "assistant", content: "I couldn't reach the server — please try again." }]);
