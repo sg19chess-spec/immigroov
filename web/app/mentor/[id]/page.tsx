@@ -6,6 +6,7 @@ import { money, fx, myTz, fmtTime, fmtDate } from "@/lib/format";
 import { getEmail, setEmail as saveEmail } from "@/lib/identity";
 import { effectivePpp, setCountry as saveCountry, pppFactor, currencyForCountry } from "@/lib/ppp";
 import Calendar from "@/components/Calendar";
+import { isEngaged, openGroovia } from "@/lib/groovia";
 
 type Service = { id: number; title: string; description: string; duration: number; type: string; set_price: number; platform_fee: number; set_currency: string; is_ppp: boolean; base?: number; you?: number; you0?: number };
 type Slot = { slot_start: string };
@@ -36,8 +37,15 @@ export default function MentorPage({ params }: { params: { id: string } }) {
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [myEmail, setMyEmail] = useState<string | null>(null);
   const [guest, setGuest] = useState({ name: "", email: "" });
+  const [engaged, setEngagedS] = useState(true); // assume true until mount to avoid SSR flash
 
   useEffect(() => { setMyEmail(getEmail()); }, []);
+  useEffect(() => {
+    setEngagedS(isEngaged());
+    const on = () => setEngagedS(true);
+    window.addEventListener("groovia-engaged", on);
+    return () => window.removeEventListener("groovia-engaged", on);
+  }, []);
   useEffect(() => { (async () => { const { country, detected, factor, suspect, currency } = await effectivePpp(); setCountryS(country); setDetected(detected); setFactor(factor); setSuspect(suspect); setMc(currency); })(); }, []);
 
   useEffect(() => {
@@ -94,6 +102,7 @@ export default function MentorPage({ params }: { params: { id: string } }) {
 
   async function book() {
     if (!svc || !slot) return;
+    if (!isEngaged()) { setMsg({ t: "Chat with Groovia AI first to make sure this mentor fits — then you can book.", ok: false }); openGroovia(); return; }
     const email = (myEmail || guest.email).trim();
     if (!email.includes("@")) { setMsg({ t: "Please enter a valid email so we can send your confirmation.", ok: false }); return; }
     setBusy(true); setMsg(null);
@@ -242,8 +251,8 @@ export default function MentorPage({ params }: { params: { id: string } }) {
                   <input type="email" value={guest.email} onChange={(e) => setGuest({ ...guest, email: e.target.value })} placeholder="you@email.com" style={{ width: "100%" }} />
                 </div>
               )}
-              <button className="btn-cta btn-lg" style={{ width: "100%", marginTop: 16 }} disabled={!slot || busy || reqMissing || (!myEmail && !guest.email.includes("@"))} onClick={book}>
-                {busy ? "Booking…" : !slot ? "Select a time" : "Confirm booking"}
+              <button className="btn-cta btn-lg" style={{ width: "100%", marginTop: 16 }} disabled={busy || !slot || (engaged && (reqMissing || (!myEmail && !guest.email.includes("@"))))} onClick={engaged ? book : openGroovia}>
+                {busy ? "Booking…" : !slot ? "Select a time" : !engaged ? "💬 Chat with Groovia AI to book" : "Confirm booking"}
               </button>
               <div className="faint" style={{ fontSize: 11, textAlign: "center", marginTop: 8 }}>You can cancel anytime · mock payment · confirmation emailed</div>
             </>

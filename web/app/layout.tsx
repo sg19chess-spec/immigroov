@@ -1,6 +1,7 @@
 import "./globals.css";
 import type { Metadata } from "next";
 import Nav from "@/components/Nav";
+import ChatWidget from "@/components/ChatWidget";
 
 export const metadata: Metadata = {
   title: "Immigroov — Mentor Marketplace",
@@ -13,6 +14,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <Nav />
         {children}
+        <ChatWidget />
       </body>
     </html>
   );
