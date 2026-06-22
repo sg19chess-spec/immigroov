@@ -6,42 +6,47 @@ const TZ_COUNTRY: Record<string, string> = {
   "Europe/London": "GB", "Asia/Dubai": "AE", "Australia/Sydney": "AU", "Asia/Singapore": "SG",
   "Asia/Tokyo": "JP", "Africa/Johannesburg": "ZA", "America/Toronto": "CA", "Asia/Manila": "PH",
 };
-
 export function tzCountry(): string {
-  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  return TZ_COUNTRY[tz] || "US";
+  return TZ_COUNTRY[Intl.DateTimeFormat().resolvedOptions().timeZone] || "US";
 }
+const withTimeout = <T,>(p: Promise<T>, ms: number) =>
+  Promise.race([p, new Promise<T>((_, rej) => setTimeout(() => rej(new Error("timeout")), ms))]);
 
-function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
-  return Promise.race([p, new Promise<T>((_, rej) => setTimeout(() => rej(new Error("timeout")), ms))]);
-}
+// Free, no-key, HTTPS, CORS-enabled geo providers (tried in order).
+const PROVIDERS: (() => Promise<string>)[] = [
+  async () => (await (await withTimeout(fetch("https://get.geojs.io/v1/ip/country.json"), 2500)).json()).country,
+  async () => (await (await withTimeout(fetch("https://ipwho.is/"), 2500)).json()).country_code,
+  async () => (await (await withTimeout(fetch("https://ipapi.co/json/"), 2500)).json()).country_code,
+];
 
-// HTTPS geo (ip-api free is HTTP-only and blocked on https); falls back to timezone.
-export async function detectCountry(): Promise<string> {
+// The visitor's *real* detected country (cached). Falls back to timezone.
+export async function geoLocate(): Promise<string> {
   if (typeof window !== "undefined") {
-    const saved = localStorage.getItem("ig_country");
-    if (saved) return saved;
+    const c = localStorage.getItem("ig_country_detected");
+    if (c) return c;
   }
-  try {
-    const res = await withTimeout(fetch("https://ipapi.co/json/"), 2500);
-    const j = await res.json();
-    if (j && j.country_code) return String(j.country_code).toUpperCase();
-  } catch { /* ignore */ }
-  return tzCountry();
+  for (const fn of PROVIDERS) {
+    try { const cc = (await fn() || "").toUpperCase(); if (/^[A-Z]{2}$/.test(cc)) { localStorage.setItem("ig_country_detected", cc); return cc; } } catch { /* next */ }
+  }
+  const t = tzCountry();
+  if (typeof window !== "undefined") localStorage.setItem("ig_country_detected", t);
+  return t;
 }
 
-export function setCountry(cc: string) {
-  localStorage.setItem("ig_country", cc.toUpperCase());
-  window.dispatchEvent(new Event("ig-country"));
+export function setCountry(cc: string) { localStorage.setItem("ig_country", cc.toUpperCase()); window.dispatchEvent(new Event("ig-country")); }
+
+// Active country = manual override if set, else detected. Reports if overridden.
+export async function activeCountry(): Promise<{ cc: string; detected: string; overridden: boolean }> {
+  const detected = await geoLocate();
+  const chosen = typeof window !== "undefined" ? localStorage.getItem("ig_country") : null;
+  return { cc: chosen || detected, detected, overridden: !!chosen && chosen !== detected };
 }
 
 const factorCache: Record<string, number> = {};
 export async function pppFactor(cc: string): Promise<number> {
   const k = (cc || "US").toUpperCase();
   if (factorCache[k] != null) return factorCache[k];
-  try {
-    const { data } = await createClient().rpc("get_ppp_factor", { p_cc: k });
-    factorCache[k] = Number(data ?? 1) || 1;
-  } catch { factorCache[k] = 1; }
+  try { const { data } = await createClient().rpc("get_ppp_factor", { p_cc: k }); factorCache[k] = Number(data ?? 1) || 1; }
+  catch { factorCache[k] = 1; }
   return factorCache[k];
 }

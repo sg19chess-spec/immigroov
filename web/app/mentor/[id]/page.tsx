@@ -4,7 +4,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { money, fx, guessCurrency, myTz, fmtTime, fmtDate } from "@/lib/format";
 import { getEmail, setEmail as saveEmail } from "@/lib/identity";
-import { detectCountry, setCountry as saveCountry, pppFactor } from "@/lib/ppp";
+import { activeCountry, setCountry as saveCountry, pppFactor } from "@/lib/ppp";
 import Calendar from "@/components/Calendar";
 
 type Service = { id: number; title: string; description: string; duration: number; type: string; set_price: number; platform_fee: number; set_currency: string; is_ppp: boolean; base?: number; you?: number; you0?: number };
@@ -22,6 +22,7 @@ export default function MentorPage({ params }: { params: { id: string } }) {
   const [servicesRaw, setServicesRaw] = useState<Service[]>([]);
   const [priced, setPriced] = useState<Service[]>([]);
   const [country, setCountryS] = useState("US");
+  const [detected, setDetected] = useState("US");
   const [factor, setFactor] = useState(1);
   const [svc, setSvc] = useState<Service | null>(null);
   const [slots, setSlots] = useState<Slot[]>([]);
@@ -36,7 +37,7 @@ export default function MentorPage({ params }: { params: { id: string } }) {
   const [guest, setGuest] = useState({ name: "", email: "" });
 
   useEffect(() => { setMyEmail(getEmail()); }, []);
-  useEffect(() => { (async () => { const cc = await detectCountry(); setCountryS(cc); setFactor(await pppFactor(cc)); })(); }, []);
+  useEffect(() => { (async () => { const { cc, detected } = await activeCountry(); setCountryS(cc); setDetected(detected); setFactor(await pppFactor(cc)); })(); }, []);
 
   useEffect(() => {
     (async () => {
@@ -66,7 +67,13 @@ export default function MentorPage({ params }: { params: { id: string } }) {
     })();
   }, [servicesRaw, factor, mc]);
 
-  async function changeCountry(cc: string) { saveCountry(cc); setCountryS(cc); setFactor(await pppFactor(cc)); }
+  async function changeCountry(cc: string) {
+    if (cc !== detected) {
+      const ok = window.confirm(`Prices are set for your detected location (${detected}). Viewing ${cc} prices may not reflect where you live — are you sure?`);
+      if (!ok) return; // keep current selection
+    }
+    saveCountry(cc); setCountryS(cc); setFactor(await pppFactor(cc));
+  }
 
   async function pickService(s: Service) {
     setSvc(s); setSlot(null); setDate(null); setSlots([]); setLoadingSlots(true); setMsg(null);
