@@ -7,9 +7,10 @@ export const maxDuration = 30;
 
 // ── Models / providers ────────────────────────────────────────────────────
 // Generation goes through OpenRouter (OpenAI-compatible). Set OPENROUTER_MODEL
-// to any chat model you have credits for (e.g. anthropic/claude-3.5-sonnet,
-// openai/gpt-4o, google/gemini-2.0-flash-001).
-const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL || "anthropic/claude-3.5-sonnet";
+// to any chat model you have credits for, e.g. anthropic/claude-haiku-4.5
+// (cheap/fast), anthropic/claude-sonnet-4.6 (balanced), anthropic/claude-opus-4.8
+// (most capable), openai/gpt-4o-mini, google/gemini-2.0-flash-001.
+const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL || "anthropic/claude-sonnet-4.6";
 
 // Embeddings are OpenAI-compatible and configurable. OpenRouter does not expose
 // an embeddings endpoint, so this defaults to OpenAI; point it elsewhere via env
