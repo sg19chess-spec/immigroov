@@ -19,11 +19,20 @@ const PROVIDERS: (() => Promise<string>)[] = [
   async () => (await (await withTimeout(fetch("https://ipapi.co/json/"), 2500)).json()).country_code,
 ];
 
-// The visitor's *real* detected country (cached). Falls back to timezone.
+function cookie(name: string): string | null {
+  if (typeof document === "undefined") return null;
+  const m = document.cookie.match(new RegExp("(?:^|; )" + name + "=([^;]*)"));
+  return m ? decodeURIComponent(m[1]) : null;
+}
+
+// The visitor's *real* detected country (cached). Order: cached -> edge cookie
+// (Vercel, free, server-side) -> client geo providers -> timezone.
 export async function geoLocate(): Promise<string> {
   if (typeof window !== "undefined") {
     const c = localStorage.getItem("ig_country_detected");
     if (c) return c;
+    const edge = (cookie("ig_geo") || "").toUpperCase();
+    if (/^[A-Z]{2}$/.test(edge)) { localStorage.setItem("ig_country_detected", edge); return edge; }
   }
   for (const fn of PROVIDERS) {
     try { const cc = (await fn() || "").toUpperCase(); if (/^[A-Z]{2}$/.test(cc)) { localStorage.setItem("ig_country_detected", cc); return cc; } } catch { /* next */ }
