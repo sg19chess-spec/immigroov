@@ -125,12 +125,12 @@ label.fld { display: block; font-size: 12.5px; color: var(--muted); font-weight:
 .slot small { font-weight: 500; color: var(--faint); font-size: 10.5px; margin-top: 2px; }
 
 /* calendar */
-.cal { user-select: none; }
+.cal { user-select: none; width: 100%; max-width: 340px; }
 .cal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
 .cal-head b { font-size: 16px; font-weight: 800; }
 .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 7px; }
 .cal-dow { text-align: center; font-size: 11px; color: var(--faint); font-weight: 700; padding-bottom: 4px; }
-.cal-day { position: relative; aspect-ratio: 1/1; display: flex; align-items: center; justify-content: center; border: 1px solid var(--line); border-radius: 12px; background: #fff; font-size: 14px; font-weight: 700; color: var(--ink); cursor: pointer; padding: 0; transition: .14s; }
+.cal-day { position: relative; height: 42px; display: flex; align-items: center; justify-content: center; border: 1px solid var(--line); border-radius: 12px; background: #fff; font-size: 14px; font-weight: 700; color: var(--ink); cursor: pointer; padding: 0; transition: background .14s, border-color .14s, transform .14s; }
 .cal-day.empty { border: 0; background: transparent; cursor: default; }
 .cal-day.avail { border-color: #c9e8d6; background: #f0fbf4; }
 .cal-day.avail:hover { border-color: var(--orange); transform: translateY(-2px); box-shadow: var(--sh-xs); }
@@ -199,7 +199,7 @@ label.fld { display: block; font-size: 12.5px; color: var(--muted); font-weight:
   .full-sm { width: 100% !important; }
   .list-row .actions { width: 100%; } .list-row .actions .btn-ghost, .list-row .actions button { flex: 1; }
   input, select, button, .btn { min-height: 44px; }   /* comfortable tap targets */
-  .cal-grid { gap: 5px; } .cal-day { font-size: 13px; border-radius: 9px; }
+  .cal-grid { gap: 5px; } .cal-day { font-size: 13px; border-radius: 9px; height: 40px; }
   .slotgrid { grid-template-columns: repeat(auto-fill, minmax(80px,1fr)); }
   .hide-mobile { display: none !important; }
   .nav { padding: 10px 14px; gap: 9px; }
