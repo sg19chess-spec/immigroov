@@ -3,12 +3,14 @@ import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { money, fx, guessCurrency, myTz, fmtTime, fmtDate } from "@/lib/format";
-import { getEmail, setEmail } from "@/lib/identity";
+import { getEmail, setEmail as saveEmail } from "@/lib/identity";
+import { detectCountry, setCountry as saveCountry, pppFactor } from "@/lib/ppp";
 import Calendar from "@/components/Calendar";
 
-type Service = { id: number; title: string; description: string; duration: number; type: string; set_price: number; platform_fee: number; set_currency: string; total?: number; you?: number };
+type Service = { id: number; title: string; description: string; duration: number; type: string; set_price: number; platform_fee: number; set_currency: string; is_ppp: boolean; base?: number; you?: number; you0?: number };
 type Slot = { slot_start: string };
 const dateKey = (iso: string, tz: string) => new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(iso));
+const COUNTRIES: [string, string][] = [["US","United States"],["IN","India"],["GB","United Kingdom"],["BR","Brazil"],["NL","Netherlands"],["DE","Germany"],["CA","Canada"],["AU","Australia"],["AE","UAE"],["SG","Singapore"],["JP","Japan"],["ZA","South Africa"],["NG","Nigeria"],["PH","Philippines"],["ID","Indonesia"],["MX","Mexico"]];
 
 export default function MentorPage({ params }: { params: { id: string } }) {
   const mentorId = Number(params.id);
@@ -17,7 +19,10 @@ export default function MentorPage({ params }: { params: { id: string } }) {
   const tz = myTz();
 
   const [mentor, setMentor] = useState<{ name: string; title: string; pic: string; tz: string; rating: number; reviews: number } | null>(null);
-  const [services, setServices] = useState<Service[]>([]);
+  const [servicesRaw, setServicesRaw] = useState<Service[]>([]);
+  const [priced, setPriced] = useState<Service[]>([]);
+  const [country, setCountryS] = useState("US");
+  const [factor, setFactor] = useState(1);
   const [svc, setSvc] = useState<Service | null>(null);
   const [slots, setSlots] = useState<Slot[]>([]);
   const [date, setDate] = useState<string | null>(null);
@@ -31,6 +36,7 @@ export default function MentorPage({ params }: { params: { id: string } }) {
   const [guest, setGuest] = useState({ name: "", email: "" });
 
   useEffect(() => { setMyEmail(getEmail()); }, []);
+  useEffect(() => { (async () => { const cc = await detectCountry(); setCountryS(cc); setFactor(await pppFactor(cc)); })(); }, []);
 
   useEffect(() => {
     (async () => {
@@ -40,12 +46,27 @@ export default function MentorPage({ params }: { params: { id: string } }) {
       ]);
       const meta = (prof || []).find((x: any) => x.mentor_id === mentorId);
       setMentor({ name: meta?.name || "Mentor", title: m?.title || "", pic: m?.profile_pic_url || "", tz: m?.app_timezone || "UTC", rating: meta?.avg_rating || 0, reviews: meta?.review_count || 0 });
-      const { data } = await supabase.from("services").select("id,title,description,duration,type,set_price,platform_fee,set_currency").eq("mentor_id", mentorId).eq("is_active", true);
-      const list = (data || []) as Service[];
-      for (const s of list) { s.total = (Number(s.set_price) || 0) + (Number(s.platform_fee) || 0); const f = await fx(s.set_currency || "USD", mc); s.you = s.total * f.rate; }
-      setServices(list);
+      const { data } = await supabase.from("services").select("id,title,description,duration,type,set_price,platform_fee,set_currency,is_ppp").eq("mentor_id", mentorId).eq("is_active", true);
+      setServicesRaw((data || []) as Service[]);
     })();
-  }, [supabase, mentorId, mc]);
+  }, [supabase, mentorId]);
+
+  // recompute prices whenever services, PPP factor, or currency change
+  useEffect(() => {
+    (async () => {
+      const out: Service[] = [];
+      for (const s of servicesRaw) {
+        const base = (Number(s.set_price) || 0) + (Number(s.platform_fee) || 0);
+        const eff = s.is_ppp ? base * factor : base;
+        const f = await fx(s.set_currency || "USD", mc);
+        out.push({ ...s, base, you: eff * f.rate, you0: base * f.rate });
+      }
+      setPriced(out);
+      setSvc((cur) => (cur ? out.find((x) => x.id === cur.id) || null : null));
+    })();
+  }, [servicesRaw, factor, mc]);
+
+  async function changeCountry(cc: string) { saveCountry(cc); setCountryS(cc); setFactor(await pppFactor(cc)); }
 
   async function pickService(s: Service) {
     setSvc(s); setSlot(null); setDate(null); setSlots([]); setLoadingSlots(true); setMsg(null);
@@ -61,23 +82,23 @@ export default function MentorPage({ params }: { params: { id: string } }) {
   const daySlots = useMemo(() => (date ? slots.filter((s) => dateKey(s.slot_start, tz) === date) : []), [slots, date, tz]);
   const reqMissing = questions.some((q) => q.is_required && !(answers[q.id] || "").trim());
   const stepN = !svc ? 1 : !slot ? 2 : 3;
+  const pppOn = !!svc?.is_ppp && factor < 1;
 
   async function book() {
     if (!svc || !slot) return;
     const email = (myEmail || guest.email).trim();
     if (!email.includes("@")) { setMsg({ t: "Please enter a valid email so we can send your confirmation.", ok: false }); return; }
-    const f = await fx(svc.set_currency || "USD", mc);
-    const cost = (svc.total || 0) * f.rate;
-    const ans = questions.map((q) => ({ question_id: q.id, answer_text: answers[q.id] || "" }));
     setBusy(true); setMsg(null);
+    const ans = questions.map((q) => ({ question_id: q.id, answer_text: answers[q.id] || "" }));
     const { error } = await supabase.rpc("book_session_guest", {
-      p_mentor_id: mentorId, p_service_id: svc.id, p_slot_time: slot, p_mentee_currency: mc, p_mentee_cost: cost,
-      p_email: email, p_name: guest.name || null, p_timezone: tz, p_answers: ans,
+      p_mentor_id: mentorId, p_service_id: svc.id, p_slot_time: slot, p_mentee_currency: mc,
+      p_mentee_cost: svc.you, p_email: email, p_name: guest.name || null, p_timezone: tz,
+      p_answers: ans, p_ppp_factor: svc.is_ppp ? factor : 1.0,
     });
     setBusy(false);
     if (error) { setMsg({ t: error.message, ok: false }); return; }
-    if (!myEmail) { setEmail(email); setMyEmail(email); }   // sign them in so it shows in My sessions
-    setMsg({ t: `Booked for ${fmtDate(slot, tz)}, ${fmtTime(slot, tz)} (your time). A confirmation was sent to ${email}. See "My sessions".`, ok: true });
+    if (!myEmail) { saveEmail(email); setMyEmail(email); }
+    setMsg({ t: `Booked for ${fmtDate(slot, tz)}, ${fmtTime(slot, tz)} (your time). Confirmation sent to ${email}.`, ok: true });
     setSlot(null); pickService(svc);
   }
 
@@ -86,14 +107,23 @@ export default function MentorPage({ params }: { params: { id: string } }) {
       <Link href="/" className="muted" style={{ fontSize: 14 }}>← All mentors</Link>
 
       {mentor && (
-        <div className="card reveal" style={{ display: "flex", gap: 18, alignItems: "center", margin: "16px 0 20px" }}>
+        <div className="card reveal" style={{ display: "flex", gap: 18, alignItems: "center", margin: "16px 0 18px", flexWrap: "wrap" }}>
           <img className="avatar" src={mentor.pic || "https://i.pravatar.cc/150"} width={72} height={72} alt="" />
-          <div style={{ flex: 1 }}>
+          <div style={{ flex: 1, minWidth: 180 }}>
             <h1 style={{ fontSize: 26, margin: 0 }}>{mentor.name}</h1>
             <div className="muted">{mentor.title}</div>
             <div className="stars" style={{ marginTop: 4, fontSize: 14 }}>★ {Number(mentor.rating).toFixed(1)} <span className="faint" style={{ fontWeight: 500 }}>({mentor.reviews} reviews)</span></div>
           </div>
-          <div className="lead" style={{ textAlign: "right", fontSize: 13 }}>Your time: <b>{tz}</b><br />Mentor: <b>{mentor.tz}</b></div>
+          <div style={{ textAlign: "right", fontSize: 13 }}>
+            <div className="lead">Your time <b>{tz}</b> · Mentor <b>{mentor.tz}</b></div>
+            <div style={{ marginTop: 6, display: "inline-flex", alignItems: "center", gap: 6 }}>
+              <span className="faint">🌍 Prices for</span>
+              <select value={country} onChange={(e) => changeCountry(e.target.value)} style={{ padding: "5px 8px", fontSize: 13 }}>
+                {COUNTRIES.map(([c, n]) => <option key={c} value={c}>{n}</option>)}
+              </select>
+              {factor < 1 && <span className="tag" style={{ background: "var(--orange-soft)", color: "var(--orange-d)" }}>PPP −{Math.round((1 - factor) * 100)}%</span>}
+            </div>
+          </div>
         </div>
       )}
 
@@ -108,25 +138,24 @@ export default function MentorPage({ params }: { params: { id: string } }) {
       {msg && <div className={`banner ${msg.ok ? "ok" : "bad"}`}>{msg.t}</div>}
 
       <div className="grid two-col" style={{ gridTemplateColumns: "1fr 360px", alignItems: "start" }}>
-        {/* main */}
         <div>
           {!svc && (
             <>
               <h2 className="sec" style={{ fontSize: 18, marginBottom: 14 }}>Choose a service</h2>
               <div style={{ display: "grid", gap: 14 }}>
-                {services.map((s) => (
+                {priced.map((s) => (
                   <div className="card card-hover" key={s.id} onClick={() => pickService(s)} style={{ cursor: "pointer", display: "flex", justifyContent: "space-between", gap: 14, alignItems: "center" }}>
                     <div>
-                      <div style={{ fontWeight: 700, fontSize: 16 }}>{s.title}</div>
+                      <div style={{ fontWeight: 700, fontSize: 16 }}>{s.title} {s.is_ppp && factor < 1 && <span className="tag" style={{ background: "var(--orange-soft)", color: "var(--orange-d)" }}>fair price</span>}</div>
                       <div className="muted" style={{ fontSize: 13, marginTop: 3 }}>{s.duration} min · {s.type === "video" ? "Video call" : "Direct message"}{s.description ? ` · ${s.description}` : ""}</div>
                     </div>
                     <div style={{ textAlign: "right", whiteSpace: "nowrap" }}>
                       <div className="price-big" style={{ fontSize: 20, color: "var(--orange-d)" }}>≈ {money(s.you || 0, mc)}</div>
-                      <div className="faint" style={{ fontSize: 12 }}>{money(s.total || 0, s.set_currency)} {s.set_currency}</div>
+                      {s.is_ppp && factor < 1 && <div className="faint" style={{ fontSize: 12, textDecoration: "line-through" }}>≈ {money(s.you0 || 0, mc)}</div>}
                     </div>
                   </div>
                 ))}
-                {services.length === 0 && <div className="empty"><div className="ico">📭</div>No active services yet.</div>}
+                {priced.length === 0 && <div className="empty"><div className="ico">📭</div>No active services yet.</div>}
               </div>
             </>
           )}
@@ -142,7 +171,6 @@ export default function MentorPage({ params }: { params: { id: string } }) {
                   {loadingSlots ? <div className="skel" style={{ height: 300 }} />
                     : availableDates.size === 0 ? <div className="empty" style={{ padding: "30px 10px" }}><div className="ico">🗓️</div>No openings in 60 days.</div>
                     : <Calendar available={availableDates} selected={date} onSelect={(d) => { setDate(d); setSlot(null); }} />}
-                  {availableDates.size > 0 && <div className="faint" style={{ fontSize: 12, marginTop: 14, display: "flex", gap: 7, alignItems: "center" }}><span style={{ width: 14, height: 14, borderRadius: 4, background: "#f0fbf4", border: "1px solid #c9e8d6", display: "inline-block" }} /> days with openings</div>}
                 </div>
                 <div>
                   {!date && <div className="faint" style={{ fontSize: 14, paddingTop: 8 }}>← Select a highlighted date to see open times.</div>}
@@ -165,8 +193,7 @@ export default function MentorPage({ params }: { params: { id: string } }) {
           )}
         </div>
 
-        {/* summary / checkout */}
-        <div className="card summary reveal" style={{ background: "var(--surface)" }}>
+        <div className="card summary reveal">
           <div className="faint" style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em" }}>Your booking</div>
           {!svc ? <p className="muted" style={{ fontSize: 14, marginTop: 10 }}>Pick a service to get started.</p> : (
             <>
@@ -176,11 +203,16 @@ export default function MentorPage({ params }: { params: { id: string } }) {
                 <Row k="When" v={slot ? `${fmtDate(slot, tz)}, ${fmtTime(slot, tz)}` : "—"} />
                 <Row k="Mentor's time" v={slot ? fmtTime(slot, mentor?.tz || "UTC") : "—"} />
               </div>
+              {pppOn && (
+                <div className="faint" style={{ fontSize: 12, display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                  <span>Standard</span><span style={{ textDecoration: "line-through" }}>≈ {money(svc.you0 || 0, mc)}</span>
+                </div>
+              )}
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span className="muted">Total</span>
+                <span className="muted">{pppOn ? `Your price (${country})` : "Total"}</span>
                 <span className="price-big">≈ {money(svc.you || 0, mc)}</span>
               </div>
-              <div className="faint" style={{ fontSize: 11.5, textAlign: "right" }}>{money(svc.total || 0, svc.set_currency)} {svc.set_currency} · incl. platform fee</div>
+              {pppOn && <div className="faint" style={{ fontSize: 11.5, textAlign: "right", color: "var(--orange-d)" }}>Fair pricing applied · −{Math.round((1 - factor) * 100)}%</div>}
 
               {slot && questions.length > 0 && (
                 <div style={{ marginTop: 16 }}>
@@ -192,12 +224,9 @@ export default function MentorPage({ params }: { params: { id: string } }) {
                   ))}
                 </div>
               )}
-              {slot && myEmail && (
-                <div className="muted" style={{ marginTop: 14, fontSize: 13 }}>Booking as <b>{myEmail}</b></div>
-              )}
               {slot && !myEmail && (
                 <div style={{ marginTop: 16, paddingTop: 14, borderTop: "1px solid var(--line)" }}>
-                  <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 8 }}>Your details</div>
+                  <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 8 }}>Booking as a guest</div>
                   <label className="fld">Your name</label>
                   <input value={guest.name} onChange={(e) => setGuest({ ...guest, name: e.target.value })} placeholder="Optional" style={{ width: "100%", marginBottom: 10 }} />
                   <label className="fld">Email — we'll send your confirmation here *</label>
