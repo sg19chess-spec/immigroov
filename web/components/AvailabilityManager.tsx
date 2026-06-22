@@ -108,10 +108,10 @@ export default function AvailabilityManager({ mentorId, mentorTz }: { mentorId: 
             <b>{new Date(cal.y, cal.m, 1).toLocaleDateString("en", { month: "long", year: "numeric" })}</b>
             <button className="btn-ghost btn-sm" onClick={() => setCal(({ y, m }) => m === 11 ? { y: y + 1, m: 0 } : { y, m: m + 1 })}>›</button>
           </div>
-          <div className="cal-grid">
+          <div className="cal-dows">
             {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => <div key={d} className="cal-dow">{d}</div>)}
-            {cells}
           </div>
+          <div className="cal-grid">{cells}</div>
         </div>
 
         {sel && (

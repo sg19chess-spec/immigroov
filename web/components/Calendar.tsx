@@ -39,10 +39,10 @@ export default function Calendar({
         <b>{first.toLocaleDateString("en", { month: "long", year: "numeric" })}</b>
         <button className="btn-ghost btn-sm" onClick={() => setCur((c) => (c.m === 11 ? { y: c.y + 1, m: 0 } : { y: c.y, m: c.m + 1 }))} aria-label="Next month">›</button>
       </div>
-      <div className="cal-grid">
+      <div className="cal-dows">
         {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => <div key={d} className="cal-dow">{d}</div>)}
-        {cells}
       </div>
+      <div className="cal-grid">{cells}</div>
     </div>
   );
 }

@@ -2,9 +2,9 @@
 import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { money, fx, guessCurrency, myTz, fmtTime, fmtDate } from "@/lib/format";
+import { money, fx, myTz, fmtTime, fmtDate } from "@/lib/format";
 import { getEmail, setEmail as saveEmail } from "@/lib/identity";
-import { effectivePpp, setCountry as saveCountry, pppFactor } from "@/lib/ppp";
+import { effectivePpp, setCountry as saveCountry, pppFactor, currencyForCountry } from "@/lib/ppp";
 import Calendar from "@/components/Calendar";
 
 type Service = { id: number; title: string; description: string; duration: number; type: string; set_price: number; platform_fee: number; set_currency: string; is_ppp: boolean; base?: number; you?: number; you0?: number };
@@ -15,8 +15,8 @@ const COUNTRIES: [string, string][] = [["US","United States"],["IN","India"],["G
 export default function MentorPage({ params }: { params: { id: string } }) {
   const mentorId = Number(params.id);
   const supabase = createClient();
-  const mc = guessCurrency();
   const tz = myTz();
+  const [mc, setMc] = useState("USD");
 
   const [mentor, setMentor] = useState<{ name: string; title: string; pic: string; tz: string; rating: number; reviews: number } | null>(null);
   const [servicesRaw, setServicesRaw] = useState<Service[]>([]);
@@ -38,7 +38,7 @@ export default function MentorPage({ params }: { params: { id: string } }) {
   const [guest, setGuest] = useState({ name: "", email: "" });
 
   useEffect(() => { setMyEmail(getEmail()); }, []);
-  useEffect(() => { (async () => { const { country, detected, factor, suspect } = await effectivePpp(); setCountryS(country); setDetected(detected); setFactor(factor); setSuspect(suspect); })(); }, []);
+  useEffect(() => { (async () => { const { country, detected, factor, suspect, currency } = await effectivePpp(); setCountryS(country); setDetected(detected); setFactor(factor); setSuspect(suspect); setMc(currency); })(); }, []);
 
   useEffect(() => {
     (async () => {
@@ -73,7 +73,7 @@ export default function MentorPage({ params }: { params: { id: string } }) {
       const ok = window.confirm(`Prices are set for your detected location (${detected}). Viewing ${cc} prices may not reflect where you live — are you sure?`);
       if (!ok) return; // keep current selection
     }
-    saveCountry(cc); setCountryS(cc); setFactor(await pppFactor(cc));
+    saveCountry(cc); setCountryS(cc); setMc(currencyForCountry(cc)); setFactor(await pppFactor(cc));
   }
 
   async function pickService(s: Service) {

@@ -9,6 +9,16 @@ const TZ_COUNTRY: Record<string, string> = {
 export function tzCountry(): string {
   return TZ_COUNTRY[Intl.DateTimeFormat().resolvedOptions().timeZone] || "US";
 }
+
+// Country -> display currency (only currencies our FX (Frankfurter) supports;
+// anything else falls back to USD so conversion stays correct).
+const COUNTRY_CCY: Record<string, string> = {
+  US:"USD", GB:"GBP", IN:"INR", DE:"EUR", FR:"EUR", NL:"EUR", IE:"EUR", ES:"EUR", IT:"EUR", PT:"EUR",
+  CA:"CAD", AU:"AUD", NZ:"NZD", SG:"SGD", HK:"HKD", JP:"JPY", KR:"KRW", CN:"CNY", MX:"MXN", BR:"BRL",
+  ZA:"ZAR", CH:"CHF", SE:"SEK", NO:"NOK", DK:"DKK", PL:"PLN", RO:"RON", CZ:"CZK", HU:"HUF", BG:"BGN",
+  IL:"ILS", ID:"IDR", PH:"PHP", MY:"MYR", TH:"THB", TR:"TRY",
+};
+export const currencyForCountry = (cc: string) => COUNTRY_CCY[(cc || "").toUpperCase()] || "USD";
 const withTimeout = <T,>(p: Promise<T>, ms: number) =>
   Promise.race([p, new Promise<T>((_, rej) => setTimeout(() => rej(new Error("timeout")), ms))]);
 
@@ -63,13 +73,13 @@ export async function pppFactor(cc: string): Promise<number> {
 // Anti-abuse: if the IP country and the browser timezone disagree (a classic
 // VPN tell) and the user hasn't manually picked a region, use the LESS-discounted
 // factor so a VPN can't unlock a cheaper price. No external service / key needed.
-export async function effectivePpp(): Promise<{ country: string; detected: string; factor: number; suspect: boolean }> {
+export async function effectivePpp(): Promise<{ country: string; detected: string; factor: number; suspect: boolean; currency: string }> {
   const { cc, detected, overridden } = await activeCountry();
-  if (overridden) return { country: cc, detected, factor: await pppFactor(cc), suspect: false };
+  if (overridden) return { country: cc, detected, factor: await pppFactor(cc), suspect: false, currency: currencyForCountry(cc) };
   const tzc = tzCountry();
   if (detected !== tzc) {
     const f = Math.max(await pppFactor(detected), await pppFactor(tzc)); // higher factor = less discount
-    return { country: detected, detected, factor: f, suspect: true };
+    return { country: detected, detected, factor: f, suspect: true, currency: currencyForCountry(detected) };
   }
-  return { country: detected, detected, factor: await pppFactor(detected), suspect: false };
+  return { country: detected, detected, factor: await pppFactor(detected), suspect: false, currency: currencyForCountry(detected) };
 }

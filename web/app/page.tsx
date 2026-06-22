@@ -2,7 +2,7 @@
 import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { money, fx, guessCurrency } from "@/lib/format";
+import { money, fx } from "@/lib/format";
 import { effectivePpp } from "@/lib/ppp";
 
 type Mentor = {
@@ -14,40 +14,47 @@ type Mentor = {
 
 export default function Home() {
   const supabase = createClient();
-  const [mentors, setMentors] = useState<Mentor[]>([]);
-  const [mc] = useState(guessCurrency());
-  const [loading, setLoading] = useState(true);
-  const [spec, setSpec] = useState("All");
+  const [raw, setRaw] = useState<Mentor[]>([]);
+  const [priced, setPriced] = useState<Mentor[]>([]);
+  const [mc, setMc] = useState("USD");
   const [country, setCountry] = useState("US");
   const [factor, setFactor] = useState(1);
   const [suspect, setSuspect] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [spec, setSpec] = useState("All");
 
   useEffect(() => {
     (async () => {
-      const { country, factor, suspect } = await effectivePpp();
-      setCountry(country); setFactor(factor); setSuspect(suspect);
+      const { country, factor, suspect, currency } = await effectivePpp();
+      setCountry(country); setFactor(factor); setSuspect(suspect); setMc(currency);
     })();
   }, []);
 
   useEffect(() => {
     (async () => {
       const { data } = await supabase.rpc("search_mentors", { p_sort: "rating" });
-      const list = (data || []) as Mentor[];
-      for (const m of list) {
+      setRaw((data || []) as Mentor[]); setLoading(false);
+    })();
+  }, [supabase]);
+
+  // price = mentor base -> visitor currency, x PPP factor when the service is PPP-enabled
+  useEffect(() => {
+    (async () => {
+      const out: Mentor[] = [];
+      for (const m of raw) {
         const f = await fx(m.currency || "USD", mc);
         const base = m.min_price != null ? m.min_price * f.rate : undefined;
-        m.you0 = base;
-        m.you = base != null ? (m.ppp ? base * factor : base) : undefined;
+        out.push({ ...m, you0: base, you: base != null ? (m.ppp ? base * factor : base) : undefined });
       }
-      setMentors(list); setLoading(false);
+      setPriced(out);
     })();
-  }, [supabase, mc, factor]);
+  }, [raw, mc, factor]);
 
   const specs = useMemo(() => {
-    const s = new Set<string>(); mentors.forEach((m) => (m.specializations || []).forEach((x) => s.add(x)));
+    const s = new Set<string>(); priced.forEach((m) => (m.specializations || []).forEach((x) => s.add(x)));
     return ["All", ...Array.from(s)];
-  }, [mentors]);
-  const shown = spec === "All" ? mentors : mentors.filter((m) => (m.specializations || []).includes(spec));
+  }, [priced]);
+  const shown = spec === "All" ? priced : priced.filter((m) => (m.specializations || []).includes(spec));
 
   return (
     <>
@@ -55,7 +62,7 @@ export default function Home() {
         <span className="eyebrow">1:1 immigration mentoring</span>
         <h1>Guidance from people who've<br /><span className="accent">actually done it.</span></h1>
         <p>Book a video session with vetted immigration experts — in your language, your timezone, and your currency.</p>
-        <div className="trust"><span>★ 4.8 avg rating</span><span>Pay in {mc}</span><span>{suspect ? "Standard pricing (location unverified)" : `Fair pricing for ${country}`}</span><span>No subscription</span></div>
+        <div className="trust"><span>★ 4.8 avg rating</span><span>Prices in {mc}</span><span>{suspect ? "Standard pricing (location unverified)" : `Fair pricing for ${country}`}</span><span>No subscription</span></div>
       </section>
 
       <div className="container">
@@ -90,10 +97,10 @@ export default function Home() {
                   <div className="faint" style={{ fontSize: 12 }}>🌐 {(m.languages || []).join(", ")}</div>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginTop: 18, paddingTop: 16, borderTop: "1px solid var(--line)" }}>
                     <div>
-                      <div className="price-big">{m.you != null ? `≈ ${money(m.you, mc)}` : "—"}</div>
+                      <div className="price-big">{m.you != null ? `${money(m.you, mc)}` : "—"}</div>
                       {fair
-                        ? <div className="faint" style={{ fontSize: 12 }}><s>≈ {money(m.you0!, mc)}</s> · <span style={{ color: "var(--orange-d)" }}>fair price</span></div>
-                        : <div className="faint" style={{ fontSize: 12 }}>{m.min_price != null ? `from ${money(m.min_price, m.currency)}` : ""}</div>}
+                        ? <div className="faint" style={{ fontSize: 12 }}><s>{money(m.you0!, mc)}</s> · <span style={{ color: "var(--orange-d)" }}>fair price</span></div>
+                        : <div className="faint" style={{ fontSize: 12 }}>from</div>}
                     </div>
                     <span className="btn btn-cta btn-sm">Book →</span>
                   </div>
