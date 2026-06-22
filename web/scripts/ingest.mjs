@@ -1,10 +1,11 @@
 // Embed knowledge sources and upsert them into kb_documents (pgvector).
 //
-// Sources:
+// Sources (all editable in the mentor console → Resources tab):
 //   - country_docs table  (editable country text)        -> kind "country"
+//   - faq_docs table      (editable FAQs + guides)        -> kind "faq"
 //   - kb_mentor_source()  (mentor profiles incl. bios)    -> kind "mentor"
-//   - kb-seed.mjs         (platform FAQs + guides)        -> kind "faq"/"guide"
 //
+// This is the CLI equivalent of the /api/kb/sync endpoint the dashboard calls.
 // Run from the web/ directory (reads web/.env.local automatically):
 //   npm run ingest
 //
@@ -16,7 +17,6 @@ import { createClient } from "@supabase/supabase-js";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { SEED } from "./kb-seed.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -80,6 +80,17 @@ async function countryDocs() {
   }));
 }
 
+async function faqDocs() {
+  const { data, error } = await sb.from("faq_docs").select("id,title,content").eq("is_published", true);
+  if (error) throw new Error(`faq_docs: ${error.message}`);
+  return (data || []).map((f) => ({
+    kind: "faq",
+    source_key: `faq:${f.id}`,
+    title: f.title,
+    content: f.content,
+  }));
+}
+
 async function mentorDocs() {
   const { data, error } = await sb.rpc("kb_mentor_source");
   if (error) throw new Error(`kb_mentor_source: ${error.message}`);
@@ -107,10 +118,10 @@ async function mentorDocs() {
 }
 
 async function main() {
-  const [countries, mentors] = await Promise.all([countryDocs(), mentorDocs()]);
-  const docs = [...SEED, ...countries, ...mentors];
+  const [countries, faqs, mentors] = await Promise.all([countryDocs(), faqDocs(), mentorDocs()]);
+  const docs = [...countries, ...faqs, ...mentors];
   console.log(
-    `Embedding ${docs.length} documents (${SEED.length} seed + ${countries.length} countries + ${mentors.length} mentors)…`
+    `Embedding ${docs.length} documents (${countries.length} countries + ${faqs.length} FAQs + ${mentors.length} mentors)…`
   );
 
   const vectors = await embedBatch(docs.map((d) => `${d.title}\n\n${d.content}`));

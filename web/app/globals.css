@@ -206,6 +206,8 @@ label.fld { display: block; font-size: 12.5px; color: var(--muted); font-weight:
   .nav { padding: 10px 14px; gap: 9px; }
 }
 
+.clamp2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
 /* ── Groovia AI chat widget ───────────────────────────────────── */
 .cw-backdrop {
   position: fixed; inset: 0; z-index: 58; background: rgba(8,16,30,.5);
