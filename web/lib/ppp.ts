@@ -59,3 +59,17 @@ export async function pppFactor(cc: string): Promise<number> {
   catch { factorCache[k] = 1; }
   return factorCache[k];
 }
+
+// Anti-abuse: if the IP country and the browser timezone disagree (a classic
+// VPN tell) and the user hasn't manually picked a region, use the LESS-discounted
+// factor so a VPN can't unlock a cheaper price. No external service / key needed.
+export async function effectivePpp(): Promise<{ country: string; detected: string; factor: number; suspect: boolean }> {
+  const { cc, detected, overridden } = await activeCountry();
+  if (overridden) return { country: cc, detected, factor: await pppFactor(cc), suspect: false };
+  const tzc = tzCountry();
+  if (detected !== tzc) {
+    const f = Math.max(await pppFactor(detected), await pppFactor(tzc)); // higher factor = less discount
+    return { country: detected, detected, factor: f, suspect: true };
+  }
+  return { country: detected, detected, factor: await pppFactor(detected), suspect: false };
+}

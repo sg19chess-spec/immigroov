@@ -4,7 +4,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { money, fx, guessCurrency, myTz, fmtTime, fmtDate } from "@/lib/format";
 import { getEmail, setEmail as saveEmail } from "@/lib/identity";
-import { activeCountry, setCountry as saveCountry, pppFactor } from "@/lib/ppp";
+import { effectivePpp, setCountry as saveCountry, pppFactor } from "@/lib/ppp";
 import Calendar from "@/components/Calendar";
 
 type Service = { id: number; title: string; description: string; duration: number; type: string; set_price: number; platform_fee: number; set_currency: string; is_ppp: boolean; base?: number; you?: number; you0?: number };
@@ -24,6 +24,7 @@ export default function MentorPage({ params }: { params: { id: string } }) {
   const [country, setCountryS] = useState("US");
   const [detected, setDetected] = useState("US");
   const [factor, setFactor] = useState(1);
+  const [suspect, setSuspect] = useState(false);
   const [svc, setSvc] = useState<Service | null>(null);
   const [slots, setSlots] = useState<Slot[]>([]);
   const [date, setDate] = useState<string | null>(null);
@@ -37,7 +38,7 @@ export default function MentorPage({ params }: { params: { id: string } }) {
   const [guest, setGuest] = useState({ name: "", email: "" });
 
   useEffect(() => { setMyEmail(getEmail()); }, []);
-  useEffect(() => { (async () => { const { cc, detected } = await activeCountry(); setCountryS(cc); setDetected(detected); setFactor(await pppFactor(cc)); })(); }, []);
+  useEffect(() => { (async () => { const { country, detected, factor, suspect } = await effectivePpp(); setCountryS(country); setDetected(detected); setFactor(factor); setSuspect(suspect); })(); }, []);
 
   useEffect(() => {
     (async () => {
@@ -129,6 +130,7 @@ export default function MentorPage({ params }: { params: { id: string } }) {
                 {COUNTRIES.map(([c, n]) => <option key={c} value={c}>{n}</option>)}
               </select>
               {factor < 1 && <span className="tag" style={{ background: "var(--orange-soft)", color: "var(--orange-d)" }}>PPP −{Math.round((1 - factor) * 100)}%</span>}
+              {suspect && <span className="faint" style={{ fontSize: 11 }} title="Your IP location and device timezone disagree (possible VPN), so we apply standard pricing.">· location unverified</span>}
             </div>
           </div>
         </div>

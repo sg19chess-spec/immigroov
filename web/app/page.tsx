@@ -3,7 +3,7 @@ import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { money, fx, guessCurrency } from "@/lib/format";
-import { activeCountry, pppFactor } from "@/lib/ppp";
+import { effectivePpp } from "@/lib/ppp";
 
 type Mentor = {
   mentor_id: number; name: string; title: string; profile_pic_url: string;
@@ -20,11 +20,12 @@ export default function Home() {
   const [spec, setSpec] = useState("All");
   const [country, setCountry] = useState("US");
   const [factor, setFactor] = useState(1);
+  const [suspect, setSuspect] = useState(false);
 
   useEffect(() => {
     (async () => {
-      const { cc } = await activeCountry();
-      setCountry(cc); setFactor(await pppFactor(cc));
+      const { country, factor, suspect } = await effectivePpp();
+      setCountry(country); setFactor(factor); setSuspect(suspect);
     })();
   }, []);
 
@@ -54,7 +55,7 @@ export default function Home() {
         <span className="eyebrow">1:1 immigration mentoring</span>
         <h1>Guidance from people who've<br /><span className="accent">actually done it.</span></h1>
         <p>Book a video session with vetted immigration experts — in your language, your timezone, and your currency.</p>
-        <div className="trust"><span>★ 4.8 avg rating</span><span>Pay in {mc}</span><span>Fair pricing for {country}</span><span>No subscription</span></div>
+        <div className="trust"><span>★ 4.8 avg rating</span><span>Pay in {mc}</span><span>{suspect ? "Standard pricing (location unverified)" : `Fair pricing for ${country}`}</span><span>No subscription</span></div>
       </section>
 
       <div className="container">
