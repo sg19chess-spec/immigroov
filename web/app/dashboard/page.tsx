@@ -25,6 +25,12 @@ export default function Dashboard() {
     });
   }, []);
 
+  // deep-link from emails: /dashboard?tab=sessions
+  useEffect(() => {
+    const t = new URLSearchParams(window.location.search).get("tab");
+    if (t && ["services", "availability", "sessions", "resources"].includes(t)) setTab(t as typeof tab);
+  }, []);
+
   const loadStats = useCallback(async (id: number) => {
     const [{ data: svc }, { data: wk }] = await Promise.all([
       supabase.rpc("demo_list_services", { p_mentor_id: id }),
