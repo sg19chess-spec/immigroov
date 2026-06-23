@@ -75,14 +75,22 @@ export default function SessionsManager({ mentorId, mentorTz }: { mentorId: numb
     const menteeSelected = b.offer_id && b.offer_status === "mentee_selected" && b.selected_time;
     const waitingMentee = b.offer_id && b.offer_by === "mentor" && b.offer_status === "pending";
     const menteeAskedDate = b.offer_id && b.offer_by === "user" && b.offer_status === "pending";
+    const showActions = !waitingMentee && !menteeAskedDate && !menteeSelected && proposing !== b.id;
     return (
-      <div className="list-row" key={b.id} style={{ display: "block" }}>
-        <div className="row-between" style={{ gap: 10 }}>
-          <div style={{ minWidth: 0 }}>
+      <div className="sess-card" key={b.id}>
+        <div className="sess-card-head">
+          <div className="sess-info">
             <div style={{ fontWeight: 700 }}>{b.service_title} <span className={`pill st-${b.status}`} style={{ marginLeft: 4 }}>{b.status}</span></div>
             <div className="muted" style={{ fontSize: 12.5, marginTop: 2 }}>with {b.mentee_name} · {b.mentee_email}</div>
             <div style={{ fontSize: 13, marginTop: 4 }}><b>{fmtTime(b.slot_time, mentorTz)}</b> · {fmtDate(b.slot_time, mentorTz)}{b.mentor_confirmed_at ? " · ✓ you confirmed" : ""}</div>
           </div>
+          {showActions && (
+            <div className="sess-actions">
+              {b.meeting_url && <a href={b.meeting_url} target="_blank" className="btn-ghost btn-sm">🎥 Join</a>}
+              <button className="btn-ghost btn-sm" onClick={() => setProposing(b.id)}>Reschedule</button>
+              <button className="btn-ghost btn-sm" style={{ color: "var(--bad)" }} onClick={() => cancel(b.id)}>Cancel</button>
+            </div>
+          )}
         </div>
 
         {soon && (
@@ -125,22 +133,14 @@ export default function SessionsManager({ mentorId, mentorTz }: { mentorId: numb
         {proposing === b.id && !menteeAskedDate && (
           <ProposeForm tz={mentorTz} defaultDate={b.slot_time.slice(0, 10)} onCancel={() => setProposing(null)} onSend={(d, s, e) => propose(b.id, d, s, e)} />
         )}
-
-        {!waitingMentee && !menteeAskedDate && !menteeSelected && proposing !== b.id && (
-          <div className="actions" style={{ marginTop: 10, gap: 8 }}>
-            {b.meeting_url && <a href={b.meeting_url} target="_blank" className="btn-ghost btn-sm">🎥 Join</a>}
-            <button className="btn-ghost btn-sm" onClick={() => setProposing(b.id)}>Reschedule</button>
-            <button className="btn-ghost btn-sm" style={{ color: "var(--bad)" }} onClick={() => cancel(b.id)}>Cancel</button>
-          </div>
-        )}
       </div>
     );
   }
 
   function pastRow(b: S) {
     return (
-      <div className="list-row" key={b.id} style={{ opacity: 0.85 }}>
-        <div style={{ minWidth: 0, flex: 1 }}>
+      <div className="sess-card past" key={b.id}>
+        <div style={{ minWidth: 0 }}>
           <div style={{ fontWeight: 700 }}>{b.service_title} <span className={`pill st-${b.status}`} style={{ marginLeft: 4 }}>{b.status}</span></div>
           <div className="muted" style={{ fontSize: 12.5, marginTop: 2 }}>with {b.mentee_name} · {b.mentee_email}</div>
           <div style={{ fontSize: 13, marginTop: 4 }}>{fmtTime(b.slot_time, mentorTz)} · {fmtDate(b.slot_time, mentorTz)} ({mentorTz})</div>
