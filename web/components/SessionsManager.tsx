@@ -151,13 +151,13 @@ export default function SessionsManager({ mentorId, mentorTz }: { mentorId: numb
 
   return (
     <div className="card">
-      <div className="row-between" style={{ marginBottom: 6, flexWrap: "wrap", gap: 10 }}>
+      <div className="row-between sess-head" style={{ marginBottom: 6, flexWrap: "wrap", gap: 10 }}>
         <div>
           <h2 className="sec" style={{ fontSize: 18 }}>Your sessions</h2>
           <div className="muted" style={{ fontSize: 12.5 }}>Confirm attendance, reschedule, or cancel. Times shown in {mentorTz}.</div>
         </div>
-        <div style={{ display: "flex", alignItems: "flex-end", gap: 8 }}>
-          <div><label className="fld">Cancellation notice (hrs)</label><input type="number" min={0} style={{ width: 110 }} value={noticeDraft} onChange={(e) => setNoticeDraft(e.target.value)} /></div>
+        <div className="sess-notice" style={{ display: "flex", alignItems: "flex-end", gap: 8 }}>
+          <div style={{ flex: 1 }}><label className="fld">Cancellation notice (hrs)</label><input type="number" min={0} style={{ width: 110 }} value={noticeDraft} onChange={(e) => setNoticeDraft(e.target.value)} /></div>
           <button className="btn-ghost btn-sm" onClick={saveNotice}>Save</button>
         </div>
       </div>

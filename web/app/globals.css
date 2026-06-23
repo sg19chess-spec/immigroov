@@ -198,7 +198,12 @@ label.fld { display: block; font-size: 12.5px; color: var(--muted); font-weight:
   .seg { display: flex; width: 100%; } .seg button { flex: 1; }
   .stack-sm { flex-direction: column !important; align-items: stretch !important; }
   .full-sm { width: 100% !important; }
-  .list-row .actions { width: 100%; } .list-row .actions .btn-ghost, .list-row .actions button { flex: 1; }
+  .list-row .actions { width: 100%; flex-wrap: wrap; } .list-row .actions .btn-ghost, .list-row .actions button, .list-row .actions a { flex: 1; }
+  .actions { flex-wrap: wrap; }
+  /* mentor Sessions: let the notice control + session rows breathe on mobile */
+  .sess-head { flex-direction: column; align-items: stretch !important; }
+  .sess-head .sess-notice { width: 100%; }
+  .sess-head .sess-notice input { flex: 1; width: auto !important; }
   input, select, button, .btn { min-height: 44px; }   /* comfortable tap targets */
   .cal-dows { gap: 5px; } .cal-grid { gap: 5px; grid-auto-rows: 40px; } .cal-day { font-size: 13px; border-radius: 9px; height: 40px; }
   .slotgrid { grid-template-columns: repeat(auto-fill, minmax(80px,1fr)); }
@@ -309,5 +314,8 @@ label.fld { display: block; font-size: 12.5px; color: var(--muted); font-weight:
     left: 8px; right: 8px; top: 8px; bottom: 8px; width: auto; height: auto;
     max-width: none; max-height: none; transform: none;
   }
-  .cw-fab { right: 14px; bottom: 14px; }
+  /* compact circular chat icon on mobile (no text label) */
+  .cw-fab { right: 16px; bottom: 16px; width: 56px; height: 56px; padding: 0; gap: 0; border-radius: 50%; justify-content: center; }
+  .cw-fab-txt { display: none; }
+  .cw-fab-ic { font-size: 24px; }
 }
