@@ -22,6 +22,8 @@ function wallToUtcISO(dateStr: string, timeStr: string, tz: string) {
   return new Date(guess - (asTz - guess)).toISOString();
 }
 
+const isActive = (st: string) => !["cancelled", "completed", "no_show"].includes(st);
+
 export default function SessionsManager({ mentorId, mentorTz }: { mentorId: number; mentorTz: string }) {
   const supabase = createClient();
   const [rows, setRows] = useState<S[]>([]);
@@ -59,6 +61,74 @@ export default function SessionsManager({ mentorId, mentorTz }: { mentorId: numb
   }
 
   const now = Date.now();
+  const upcoming = rows.filter((b) => isActive(b.status) && new Date(b.slot_time).getTime() >= now)
+    .sort((a, b) => +new Date(a.slot_time) - +new Date(b.slot_time));
+  const past = rows.filter((b) => !(isActive(b.status) && new Date(b.slot_time).getTime() >= now));
+
+  function manageRow(b: S) {
+    const slotMs = new Date(b.slot_time).getTime();
+    const soon = slotMs > now && slotMs - now < 60 * 60 * 1000 && !b.mentor_confirmed_at && !b.offer_id;
+    const waitingMentee = b.offer_id && b.offer_by === "mentor";
+    const menteeAskedDate = b.offer_id && b.offer_by === "user";
+    return (
+      <div className="list-row" key={b.id} style={{ display: "block" }}>
+        <div className="row-between" style={{ gap: 10 }}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontWeight: 700 }}>{b.service_title} <span className={`pill st-${b.status}`} style={{ marginLeft: 4 }}>{b.status}</span></div>
+            <div className="muted" style={{ fontSize: 12.5, marginTop: 2 }}>with {b.mentee_name} · {b.mentee_email}</div>
+            <div style={{ fontSize: 13, marginTop: 4 }}><b>{fmtTime(b.slot_time, mentorTz)}</b> · {fmtDate(b.slot_time, mentorTz)}{b.mentor_confirmed_at ? " · ✓ you confirmed" : ""}</div>
+          </div>
+        </div>
+
+        {soon && (
+          <div className="banner" style={{ background: "var(--orange-soft)", border: "1px solid var(--orange)", marginTop: 10 }}>
+            <b>Starting within the hour — are you available?</b>
+            <div className="actions" style={{ marginTop: 8, gap: 8 }}>
+              <button className="btn-cta btn-sm" onClick={() => confirmAttend(b.id)}>Yes, available</button>
+              <button className="btn-ghost btn-sm" onClick={() => setProposing(b.id)}>No, reschedule</button>
+            </div>
+          </div>
+        )}
+
+        {waitingMentee && (
+          <div className="banner ok" style={{ marginTop: 10 }}>
+            Waiting for {b.mentee_name} to pick a time on <b>{b.offer_date}</b>, between {fmtTime(b.range_start!, mentorTz)}–{fmtTime(b.range_end!, mentorTz)} ({mentorTz}).
+          </div>
+        )}
+
+        {menteeAskedDate && (
+          <div className="banner" style={{ background: "var(--navy-soft)", border: "1px solid var(--line)", marginTop: 10 }}>
+            <b>{b.mentee_name} asked for a different day: {b.requested_date}.</b> Offer a time range for that day below.
+            <ProposeForm tz={mentorTz} defaultDate={b.requested_date || ""} onCancel={() => {}} onSend={(d, s, e) => propose(b.id, d, s, e)} inline />
+          </div>
+        )}
+
+        {proposing === b.id && !menteeAskedDate && (
+          <ProposeForm tz={mentorTz} defaultDate={b.slot_time.slice(0, 10)} onCancel={() => setProposing(null)} onSend={(d, s, e) => propose(b.id, d, s, e)} />
+        )}
+
+        {!waitingMentee && !menteeAskedDate && proposing !== b.id && (
+          <div className="actions" style={{ marginTop: 10, gap: 8 }}>
+            {b.meeting_url && <a href={b.meeting_url} target="_blank" className="btn-ghost btn-sm">🎥 Join</a>}
+            <button className="btn-ghost btn-sm" onClick={() => setProposing(b.id)}>Reschedule</button>
+            <button className="btn-ghost btn-sm" style={{ color: "var(--bad)" }} onClick={() => cancel(b.id)}>Cancel</button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  function pastRow(b: S) {
+    return (
+      <div className="list-row" key={b.id} style={{ opacity: 0.85 }}>
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <div style={{ fontWeight: 700 }}>{b.service_title} <span className={`pill st-${b.status}`} style={{ marginLeft: 4 }}>{b.status}</span></div>
+          <div className="muted" style={{ fontSize: 12.5, marginTop: 2 }}>with {b.mentee_name} · {b.mentee_email}</div>
+          <div style={{ fontSize: 13, marginTop: 4 }}>{fmtTime(b.slot_time, mentorTz)} · {fmtDate(b.slot_time, mentorTz)} ({mentorTz})</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="card">
@@ -74,59 +144,13 @@ export default function SessionsManager({ mentorId, mentorTz }: { mentorId: numb
       </div>
       {msg && <div className="banner ok">{msg}</div>}
 
-      {rows.map((b) => {
-        const slotMs = new Date(b.slot_time).getTime();
-        const soon = slotMs > now && slotMs - now < 60 * 60 * 1000 && !b.mentor_confirmed_at && !b.offer_id;
-        const waitingMentee = b.offer_id && b.offer_by === "mentor";
-        const menteeAskedDate = b.offer_id && b.offer_by === "user";
-        return (
-          <div className="list-row" key={b.id} style={{ display: "block" }}>
-            <div className="row-between" style={{ gap: 10 }}>
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontWeight: 700 }}>{b.service_title} <span className={`pill st-${b.status}`} style={{ marginLeft: 4 }}>{b.status}</span></div>
-                <div className="muted" style={{ fontSize: 12.5, marginTop: 2 }}>with {b.mentee_name} · {b.mentee_email}</div>
-                <div style={{ fontSize: 13, marginTop: 4 }}><b>{fmtTime(b.slot_time, mentorTz)}</b> · {fmtDate(b.slot_time, mentorTz)}{b.mentor_confirmed_at ? " · ✓ you confirmed" : ""}</div>
-              </div>
-            </div>
+      {upcoming.length > 0 && <h3 style={{ fontSize: 14, color: "var(--muted)", margin: "14px 0 8px" }}>Upcoming ({upcoming.length})</h3>}
+      {upcoming.map(manageRow)}
 
-            {soon && (
-              <div className="banner" style={{ background: "var(--orange-soft)", border: "1px solid var(--orange)", marginTop: 10 }}>
-                <b>Starting within the hour — are you available?</b>
-                <div className="actions" style={{ marginTop: 8, gap: 8 }}>
-                  <button className="btn-cta btn-sm" onClick={() => confirmAttend(b.id)}>Yes, available</button>
-                  <button className="btn-ghost btn-sm" onClick={() => setProposing(b.id)}>No, reschedule</button>
-                </div>
-              </div>
-            )}
+      {past.length > 0 && <h3 style={{ fontSize: 14, color: "var(--muted)", margin: "22px 0 8px" }}>Past &amp; completed ({past.length})</h3>}
+      {past.map(pastRow)}
 
-            {waitingMentee && (
-              <div className="banner ok" style={{ marginTop: 10 }}>
-                Waiting for {b.mentee_name} to pick a time on <b>{b.offer_date}</b>, between {fmtTime(b.range_start!, mentorTz)}–{fmtTime(b.range_end!, mentorTz)} ({mentorTz}).
-              </div>
-            )}
-
-            {menteeAskedDate && (
-              <div className="banner" style={{ background: "var(--navy-soft)", border: "1px solid var(--line)", marginTop: 10 }}>
-                <b>{b.mentee_name} asked for a different day: {b.requested_date}.</b> Offer a time range for that day below.
-                <ProposeForm tz={mentorTz} defaultDate={b.requested_date || ""} onCancel={() => {}} onSend={(d, s, e) => propose(b.id, d, s, e)} inline />
-              </div>
-            )}
-
-            {proposing === b.id && !menteeAskedDate && (
-              <ProposeForm tz={mentorTz} defaultDate={b.slot_time.slice(0, 10)} onCancel={() => setProposing(null)} onSend={(d, s, e) => propose(b.id, d, s, e)} />
-            )}
-
-            {!waitingMentee && !menteeAskedDate && proposing !== b.id && (
-              <div className="actions" style={{ marginTop: 10, gap: 8 }}>
-                {b.meeting_url && <a href={b.meeting_url} target="_blank" className="btn-ghost btn-sm">🎥 Join</a>}
-                <button className="btn-ghost btn-sm" onClick={() => setProposing(b.id)}>Reschedule</button>
-                <button className="btn-ghost btn-sm" style={{ color: "var(--bad)" }} onClick={() => cancel(b.id)}>Cancel</button>
-              </div>
-            )}
-          </div>
-        );
-      })}
-      {rows.length === 0 && <div className="empty" style={{ padding: "32px 10px" }}><div className="ico">📅</div>No upcoming sessions.</div>}
+      {rows.length === 0 && <div className="empty" style={{ padding: "32px 10px" }}><div className="ico">📅</div>No sessions yet.</div>}
     </div>
   );
 }
