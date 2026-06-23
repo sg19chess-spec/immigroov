@@ -10,8 +10,8 @@ type B = {
   service_title: string; mentor_name: string; mentor_tz: string; customer_tz: string;
   cost: number; cost_currency: string; mentor_earn: number; mentor_currency: string;
   service_duration: number;
-  offer_id: number | null; offer_by: string | null; offer_date: string | null;
-  range_start: string | null; range_end: string | null; requested_date: string | null;
+  offer_id: number | null; offer_by: string | null; offer_status: string | null; offer_date: string | null;
+  range_start: string | null; range_end: string | null; requested_date: string | null; selected_time: string | null;
 };
 
 // Split a mentor's proposed window into bookable slot start-times of the service length.
@@ -81,8 +81,9 @@ function Card({ b, tz, i, onCancel, onAccept, onRequestDate, dim }: {
 }) {
   const [otherDate, setOtherDate] = useState("");
   const active = !["cancelled", "completed", "no_show"].includes(b.status);
-  const mentorOffer = active && b.offer_id && b.offer_by === "mentor" && b.range_start && b.range_end;
-  const waitingMentor = active && b.offer_id && b.offer_by === "user";
+  const mentorOffer = active && b.offer_id && b.offer_by === "mentor" && b.offer_status === "pending" && b.range_start && b.range_end;
+  const menteeSelected = active && b.offer_id && b.offer_status === "mentee_selected" && b.selected_time;
+  const waitingMentor = active && b.offer_id && b.offer_by === "user" && b.offer_status === "pending";
   const slots = mentorOffer ? slotsIn(b.range_start!, b.range_end!, b.service_duration) : [];
 
   return (
@@ -105,7 +106,12 @@ function Card({ b, tz, i, onCancel, onAccept, onRequestDate, dim }: {
           <div style={{ fontWeight: 700, fontSize: 13.5 }}>📅 Your mentor proposed a new time</div>
           <div className="muted" style={{ fontSize: 12.5, margin: "2px 0 8px" }}>{fmtDate(b.range_start!, tz)} · pick a slot that works for you ({tz}):</div>
           <div className="slotgrid">
-            {slots.map((s) => <button key={s} className="slot" onClick={() => onAccept(b.offer_id!, s)}>{fmtTime(s, tz)}</button>)}
+            {slots.map((s) => (
+              <button key={s} className="slot" style={{ height: "auto", padding: "6px 4px", lineHeight: 1.25 }} onClick={() => onAccept(b.offer_id!, s)}>
+                <div style={{ fontWeight: 700 }}>{fmtTime(s, tz)}</div>
+                <div style={{ fontSize: 10, opacity: 0.7 }}>mentor {fmtTime(s, b.mentor_tz)}</div>
+              </button>
+            ))}
             {slots.length === 0 && <div className="faint" style={{ fontSize: 12.5 }}>No future slots in that window.</div>}
           </div>
           <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap", alignItems: "center" }}>
@@ -113,6 +119,13 @@ function Card({ b, tz, i, onCancel, onAccept, onRequestDate, dim }: {
             <input type="date" value={otherDate} onChange={(e) => setOtherDate(e.target.value)} style={{ padding: "6px 8px", fontSize: 13 }} />
             <button className="btn-ghost btn-sm" disabled={!otherDate} onClick={() => onRequestDate(b.id, otherDate)}>Ask for this day</button>
           </div>
+        </div>
+      )}
+
+      {menteeSelected && (
+        <div style={{ padding: "12px 20px", borderTop: "1px solid var(--line)", background: "var(--navy-soft)", fontSize: 12.5 }}>
+          ⏳ You picked <b>{fmtTime(b.selected_time!, tz)}</b> on {fmtDate(b.selected_time!, tz)} ({tz}) · mentor {fmtTime(b.selected_time!, b.mentor_tz)} ({b.mentor_tz}).<br />
+          Waiting for {b.mentor_name} to confirm this time.
         </div>
       )}
 

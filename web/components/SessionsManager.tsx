@@ -6,9 +6,9 @@ import { fmtDate, fmtTime } from "@/lib/format";
 type S = {
   id: number; status: string; slot_time: string; meeting_url: string | null;
   service_title: string; service_duration: number; mentee_name: string; mentee_email: string;
-  mentor_tz: string; mentor_confirmed_at: string | null;
-  offer_id: number | null; offer_by: string | null; offer_date: string | null;
-  range_start: string | null; range_end: string | null; requested_date: string | null;
+  mentor_tz: string; mentee_tz: string; mentor_confirmed_at: string | null;
+  offer_id: number | null; offer_by: string | null; offer_status: string | null; offer_date: string | null;
+  range_start: string | null; range_end: string | null; requested_date: string | null; selected_time: string | null;
 };
 
 // Convert a wall-clock date+time *in tz* to a UTC ISO instant (DST-aware).
@@ -47,6 +47,10 @@ export default function SessionsManager({ mentorId, mentorTz }: { mentorId: numb
     setMsg(error ? error.message : `Cancellation notice set to ${h} hours (applies to you and the mentee).`); load();
   }
   async function confirmAttend(id: number) { await supabase.rpc("mentor_confirm_attendance", { p_booking_id: id }); setMsg("Marked as available — see you there!"); load(); }
+  async function confirmTime(offerId: number) {
+    const { error } = await supabase.rpc("mentor_confirm_reschedule", { p_offer_id: offerId });
+    setMsg(error ? error.message : "New time confirmed — the session has been moved."); load();
+  }
   async function cancel(id: number) {
     const { error } = await supabase.rpc("cancel_booking", { p_booking_id: id, p_cancelled_by: "mentor" });
     setMsg(error ? error.message : "Session cancelled."); load();
@@ -68,8 +72,9 @@ export default function SessionsManager({ mentorId, mentorTz }: { mentorId: numb
   function manageRow(b: S) {
     const slotMs = new Date(b.slot_time).getTime();
     const soon = slotMs > now && slotMs - now < 60 * 60 * 1000 && !b.mentor_confirmed_at && !b.offer_id;
-    const waitingMentee = b.offer_id && b.offer_by === "mentor";
-    const menteeAskedDate = b.offer_id && b.offer_by === "user";
+    const menteeSelected = b.offer_id && b.offer_status === "mentee_selected" && b.selected_time;
+    const waitingMentee = b.offer_id && b.offer_by === "mentor" && b.offer_status === "pending";
+    const menteeAskedDate = b.offer_id && b.offer_by === "user" && b.offer_status === "pending";
     return (
       <div className="list-row" key={b.id} style={{ display: "block" }}>
         <div className="row-between" style={{ gap: 10 }}>
@@ -86,6 +91,20 @@ export default function SessionsManager({ mentorId, mentorTz }: { mentorId: numb
             <div className="actions" style={{ marginTop: 8, gap: 8 }}>
               <button className="btn-cta btn-sm" onClick={() => confirmAttend(b.id)}>Yes, available</button>
               <button className="btn-ghost btn-sm" onClick={() => setProposing(b.id)}>No, reschedule</button>
+            </div>
+          </div>
+        )}
+
+        {menteeSelected && (
+          <div className="banner" style={{ background: "var(--orange-soft)", border: "1px solid var(--orange)", marginTop: 10 }}>
+            <b>{b.mentee_name} selected a time — confirm to lock it in:</b>
+            <div style={{ fontSize: 13, marginTop: 4 }}>
+              {fmtTime(b.selected_time!, mentorTz)} · {fmtDate(b.selected_time!, mentorTz)} ({mentorTz})
+              <span className="muted"> · their time {fmtTime(b.selected_time!, b.mentee_tz)} ({b.mentee_tz})</span>
+            </div>
+            <div className="actions" style={{ marginTop: 8, gap: 8 }}>
+              <button className="btn-cta btn-sm" onClick={() => confirmTime(b.offer_id!)}>Confirm this time</button>
+              <button className="btn-ghost btn-sm" onClick={() => setProposing(b.id)}>Propose a different range</button>
             </div>
           </div>
         )}
@@ -107,7 +126,7 @@ export default function SessionsManager({ mentorId, mentorTz }: { mentorId: numb
           <ProposeForm tz={mentorTz} defaultDate={b.slot_time.slice(0, 10)} onCancel={() => setProposing(null)} onSend={(d, s, e) => propose(b.id, d, s, e)} />
         )}
 
-        {!waitingMentee && !menteeAskedDate && proposing !== b.id && (
+        {!waitingMentee && !menteeAskedDate && !menteeSelected && proposing !== b.id && (
           <div className="actions" style={{ marginTop: 10, gap: 8 }}>
             {b.meeting_url && <a href={b.meeting_url} target="_blank" className="btn-ghost btn-sm">🎥 Join</a>}
             <button className="btn-ghost btn-sm" onClick={() => setProposing(b.id)}>Reschedule</button>
