@@ -33,6 +33,7 @@ export default function MentorPage({ params }: { params: { id: string } }) {
   const [questions, setQuestions] = useState<{ id: number; question_text: string; is_required: boolean }[]>([]);
   const [answers, setAnswers] = useState<Record<number, string>>({});
   const [msg, setMsg] = useState<{ t: string; ok: boolean } | null>(null);
+  const [booked, setBooked] = useState<{ when: string; email: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [myEmail, setMyEmail] = useState<string | null>(null);
@@ -115,8 +116,8 @@ export default function MentorPage({ params }: { params: { id: string } }) {
     setBusy(false);
     if (error) { setMsg({ t: error.message, ok: false }); return; }
     if (!myEmail) { saveEmail(email); setMyEmail(email); }
-    setMsg({ t: `Booked for ${fmtDate(slot, tz)}, ${fmtTime(slot, tz)} (your time). Confirmation sent to ${email}.`, ok: true });
-    setSlot(null); pickService(svc);
+    setBooked({ when: `${fmtDate(slot, tz)}, ${fmtTime(slot, tz)}`, email });
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   return (
@@ -145,6 +146,20 @@ export default function MentorPage({ params }: { params: { id: string } }) {
         </div>
       )}
 
+      {booked && (
+        <div className="card reveal" style={{ textAlign: "center", padding: "40px 24px", maxWidth: 520, margin: "10px auto" }}>
+          <div style={{ fontSize: 42 }}>✅</div>
+          <h2 className="sec" style={{ fontSize: 22, marginTop: 10 }}>You&rsquo;re booked!</h2>
+          <p style={{ marginTop: 6, fontWeight: 600 }}>{svc?.title} · {booked.when}</p>
+          <p className="faint" style={{ fontSize: 13, marginTop: 6 }}>Your time ({tz}) · a confirmation has been emailed to {booked.email}.</p>
+          <div style={{ display: "flex", gap: 10, justifyContent: "center", marginTop: 22, flexWrap: "wrap" }}>
+            <Link href="/bookings" className="btn btn-cta">View my sessions</Link>
+            <button className="btn-ghost" onClick={() => { setBooked(null); setSlot(null); setMsg(null); if (svc) pickService(svc); }}>Book another time</button>
+          </div>
+        </div>
+      )}
+
+      {!booked && (<>
       <div className="stepper">
         <div className={`step ${stepN > 1 ? "done" : "active"}`}><span className="num">{stepN > 1 ? "✓" : "1"}</span> Service</div>
         <div className="bar" />
@@ -259,6 +274,7 @@ export default function MentorPage({ params }: { params: { id: string } }) {
           )}
         </div>
       </div>
+      </>)}
     </div>
   );
 }

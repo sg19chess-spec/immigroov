@@ -46,7 +46,7 @@ export default function Bookings() {
   }
   async function accept(offerId: number, slotISO: string) {
     const { error } = await supabase.rpc("mentee_accept_reschedule", { p_offer_id: offerId, p_slot_time: slotISO });
-    setMsg(error ? error.message : "New time confirmed!"); refresh();
+    setMsg(error ? error.message : "Time selected — waiting for your mentor to confirm."); refresh();
   }
   async function requestDate(bookingId: number, date: string) {
     if (!date) return;
