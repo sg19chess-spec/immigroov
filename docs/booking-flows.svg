@@ -1,0 +1,65 @@
+<svg viewBox="0 0 680 832" xmlns="http://www.w3.org/2000/svg" font-family="Inter, system-ui, sans-serif">
+<title>Booking lifecycle: confirm, cancel, reschedule</title>
+<desc>A booking is confirmed and emailed to all parties. From the confirmed state it can be cancelled (gated by a notice window) or rescheduled. Reschedule: mentor proposes a range, mentee picks a time inside it or asks another day, and the mentor confirms before it locks.</desc>
+<defs><marker id="ahx" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#9aa3b2"/></marker></defs>
+<rect x="0" y="0" width="680" height="832" fill="#ffffff"/>
+<text x="340" y="19" text-anchor="middle" font-size="15.5" font-weight="700" fill="#0c1b33">Booking lifecycle — confirm · cancel · reschedule</text>
+<g font-size="10.5" fill="#334155">
+<rect x="92" y="32" width="11" height="11" rx="3" fill="#2557b0"/><text x="107" y="41">Mentee</text>
+<rect x="178" y="32" width="11" height="11" rx="3" fill="#c85a12"/><text x="193" y="41">Mentor</text>
+<rect x="262" y="32" width="11" height="11" rx="3" fill="#475569"/><text x="277" y="41">System</text>
+<rect x="346" y="32" width="11" height="11" rx="3" fill="#b91c1c"/><text x="361" y="41">Blocked</text>
+<rect x="432" y="32" width="11" height="11" rx="3" fill="#15803d"/><text x="447" y="41">Done</text>
+</g>
+
+<g stroke="#9aa3b2" stroke-width="1.5" fill="none">
+<path d="M340,210 L340,228"/><path d="M180,228 L500,228"/>
+</g>
+<g stroke="#9aa3b2" stroke-width="1.5" fill="none" marker-end="url(#ahx)">
+<path d="M340,96 L340,108"/>
+<path d="M340,150 L340,166"/>
+<path d="M180,228 L180,246"/>
+<path d="M500,228 L500,256"/>
+<path d="M180,288 L180,292"/>
+<path d="M70,330 L70,376 L115,376 L115,388"/>
+<path d="M290,330 L290,376 L280,376 L280,388"/>
+<path d="M612,300 L612,355 L595,355 L595,368"/>
+<path d="M388,300 L388,432 L340,432 L340,464"/>
+<path d="M340,508 L340,514"/>
+<path d="M300,585 L245,612 L245,628"/>
+<path d="M480,582 L535,612 L535,628"/>
+<path d="M245,670 L245,688"/>
+<path d="M245,730 L245,748"/>
+<path d="M640,650 L664,650 L664,487 L502,487"/>
+</g>
+
+<text x="58" y="242" font-size="10" fill="#9aa3b2">CANCEL</text>
+<text x="388" y="252" font-size="10" fill="#9aa3b2">ATTENDANCE</text>
+<text x="180" y="458" font-size="10" fill="#9aa3b2">RESCHEDULE</text>
+
+<g><rect x="180" y="56" width="320" height="40" rx="9" fill="#2557b0"/><text x="340" y="81" text-anchor="middle" font-size="12.5" font-weight="700" fill="#fff">① Mentee picks slot + Confirm</text></g>
+<g><rect x="160" y="110" width="360" height="40" rx="9" fill="#475569"/><text x="340" y="135" text-anchor="middle" font-size="12" fill="#fff">Confirmed · payment · emails → all 3</text></g>
+<g><rect x="250" y="168" width="180" height="42" rx="21" fill="#15803d"/><text x="340" y="194" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">CONFIRMED</text></g>
+
+<g><rect x="60" y="248" width="240" height="40" rx="9" fill="#475569"/><text x="180" y="273" text-anchor="middle" font-size="12" fill="#fff">Mentee/Mentor: Cancel</text></g>
+<g><polygon points="180,294 290,330 180,366 70,330" fill="#c85a12"/><text x="180" y="334" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">Within notice?</text></g>
+<text x="40" y="356" font-size="10" fill="#334155">Yes</text>
+<text x="298" y="356" font-size="10" fill="#334155">No</text>
+<g><rect x="40" y="388" width="150" height="42" rx="9" fill="#b91c1c"/><text x="115" y="413" text-anchor="middle" font-size="11" fill="#fff">Blocked → reschedule</text></g>
+<g><rect x="205" y="388" width="150" height="42" rx="9" fill="#475569"/><text x="280" y="413" text-anchor="middle" font-size="11" fill="#fff">Cancelled + emails</text></g>
+
+<g><polygon points="500,258 612,300 500,342 388,300" fill="#c85a12"/><text x="500" y="297" text-anchor="middle" font-size="10.5" fill="#fff">~1h before:</text><text x="500" y="311" text-anchor="middle" font-size="10.5" font-weight="700" fill="#fff">available?</text></g>
+<text x="618" y="332" font-size="10" fill="#334155">Yes</text>
+<text x="398" y="420" font-size="10" fill="#334155">No → reschedule</text>
+<g><rect x="520" y="368" width="150" height="42" rx="9" fill="#15803d"/><text x="595" y="393" text-anchor="middle" font-size="11.5" fill="#fff">Session goes ahead</text></g>
+
+<g><rect x="180" y="464" width="320" height="42" rx="9" fill="#c85a12"/><text x="340" y="490" text-anchor="middle" font-size="12.5" font-weight="700" fill="#fff">① Mentor proposes date + range</text></g>
+<g><polygon points="340,516 490,556 340,596 190,556" fill="#2557b0"/><text x="340" y="552" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">Mentee:</text><text x="340" y="567" text-anchor="middle" font-size="10.5" fill="#fff">pick time / ask new day</text></g>
+<text x="252" y="606" font-size="10" fill="#334155">pick time</text>
+<text x="548" y="602" font-size="10" fill="#334155">ask day</text>
+<g><rect x="110" y="628" width="270" height="40" rx="9" fill="#2557b0"/><text x="245" y="653" text-anchor="middle" font-size="12.5" font-weight="700" fill="#fff">② Mentee picks a time</text></g>
+<g><rect x="110" y="688" width="270" height="40" rx="9" fill="#c85a12" stroke="#7c3a0a" stroke-width="2" stroke-dasharray="4 3"/><text x="245" y="713" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">③ Mentor confirms (extra)</text></g>
+<g><rect x="110" y="748" width="270" height="40" rx="9" fill="#15803d"/><text x="245" y="773" text-anchor="middle" font-size="11.5" fill="#fff">Rescheduled + emails + .ics</text></g>
+<g><rect x="430" y="628" width="210" height="40" rx="9" fill="#2557b0"/><text x="535" y="653" text-anchor="middle" font-size="11.5" fill="#fff">Mentee asks another date</text></g>
+<text x="658" y="480" font-size="10" text-anchor="end" fill="#334155">↩ re-proposes</text>
+</svg>
