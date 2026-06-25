@@ -198,7 +198,7 @@
   <!-- ───────────────────────── DIAGRAM 3 ───────────────────────── -->
   <div class="section">
     <div class="section-title">Diagram 3 — Reschedule flow</div>
-    <div class="note">Max 2 reschedules per booking. A 3rd attempt by either party → <code>force_autocancel</code>: booking cancelled, customer refund 100%, <b>100% penalty on whoever initiated</b>. Under 2h (buffer) is blocked.</div>
+    <div class="note">Max 2 reschedules per booking. A 3rd attempt by either party → <code>force_autocancel</code>: booking cancelled, customer refund 100%, <b>100% penalty on whoever initiated</b>. The under-2h buffer is enforced only on <b>customer-initiated</b> reschedule (<code>customer_reschedule</code> / <code>request_reschedule</code>); the mentor's propose and the mentee's accept/ask-date are <b>not</b> buffer-gated in code (though an offer made under 2h has its window in the past and is expired by the cron almost immediately).</div>
     <div style="height:14px"></div>
     <div class="panels">
 
@@ -382,7 +382,7 @@
       <tr><th style="width:240px">Rule</th><th>Value in the live system</th></tr>
       <tr><td>Deadline direction</td><td><b>≥24h before = free</b> · 2–24h = late (approval / penalty) · under 2h = buffer (blocked). <code>booking_deadline_state()</code></td></tr>
       <tr><td>Response / approval window</td><td><code>MIN(now + 48h, slot − 2h)</code> — never extends past T−2h.</td></tr>
-      <tr><td>2-hour buffer</td><td>Cancel &amp; reschedule are <b>blocked</b> under 2h. (No automatic conversion to no-show.)</td></tr>
+      <tr><td>2-hour buffer</td><td><b>Cancel (both parties)</b> and <b>customer-initiated reschedule</b> are blocked under 2h. Mentor propose / mentee accept / ask-another-date are <b>not</b> buffer-gated in code. No automatic conversion to no-show.</td></tr>
       <tr><td>Reschedule cap</td><td>Max 2. 3rd attempt → auto-cancel + refund 100% + 100% penalty on the initiator.</td></tr>
       <tr><td>No mentor response to a request</td><td>Auto-approved when the window expires (cron).</td></tr>
       <tr><td>No customer response to a proposal</td><td>Offer expires; original booking unchanged (silent — no email).</td></tr>
