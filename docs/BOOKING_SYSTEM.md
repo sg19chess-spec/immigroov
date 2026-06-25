@@ -7,7 +7,10 @@
 > design see `docs/spec/booking-flow-overview.md`. Where the implementation differs
 > from the spec, this file reflects the implementation.
 >
-> Generated 2026-06-25 against project `atkulcfyaqcivzxteela`.
+> Generated 2026-06-25 against project `atkulcfyaqcivzxteela`. Every cancel, reschedule,
+> no-show and strike outcome below was additionally **executed at runtime** (2026-06-25)
+> inside rolled-back transactions and matched this document 1:1 — see the verification note
+> at the end of §13.
 
 ---
 
@@ -326,3 +329,26 @@ The read RPCs `bookings_by_email` / `mentor_sessions` join in the latest open
 - **Not implemented** (deferred): packages, a credit *wallet* (credits are recorded in the
   ledger but not spendable), before/after-first-session refund nuance, and automatic
   `buffer → no_show` conversion (no-show is report-based instead).
+
+---
+
+## 14. Runtime verification (2026-06-25)
+
+Every flow was executed against the live functions inside `DO` blocks that build a synthetic
+fixture (user + mentor + service + a real `specific_availability` window) and then **RAISE at
+the end to roll back** — so nothing committed and, because `pg_net` enqueues transactionally,
+no emails were sent. All outcomes matched this document exactly:
+
+- **Cancel:** customer free → `cancelled` + refund 100%; customer late → `cancel` request
+  (pending); late accept → refund 100%; late reject → charge 50% + refund 50%; mentor free →
+  refund 100%; mentor late → refund 100% + penalty 25%; buffer → blocked (raised).
+- **Reschedule:** late `request_reschedule` keeps booking confirmed; `mentor_propose` →
+  pending offer (`was_late` flag correct); reject within → credit 100%; reject late →
+  refund 100% + penalty 25%; `force_autocancel` customer/mentor → refund 100% + 100% penalty
+  on the initiator; 3rd attempt (`count=2`) auto-cancels; free move → `rescheduled` (count+1,
+  no ledger); `mentee_accept` within → no penalty; accept late → penalty 25%;
+  `mentee_request_other_date` → `user` counter-offer.
+- **No-show:** `flag_no_show` → `no_show` (blocked before T+10); mentor no-show rebook_same →
+  `confirmed`, no strike; rebook_different → credit 100% + strike; refund → refund 100% +
+  strike; customer no-show accept → `confirmed`; reject → `completed` + mentor credit 100%.
+- **Strikes:** 1 → 0%, 2 → 0%, 3 → 25%; a 100-day gap resets to strike 1 (0%).
