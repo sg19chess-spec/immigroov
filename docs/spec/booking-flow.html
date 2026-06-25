@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Immigroov — Booking Lifecycle Flow</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: Arial, sans-serif;
+    background: #F7F6F2;
+    color: #1A1A1A;
+    padding: 40px 24px 80px;
+  }
+
+  .page { max-width: 960px; margin: 0 auto; }
+
+  /* HEADER */
+  .header { margin-bottom: 48px; padding-bottom: 20px; border-bottom: 3px solid #1B3B8A; }
+  .header h1 { font-size: 28px; font-weight: 700; color: #1B3B8A; }
+  .header p { font-size: 14px; color: #777; margin-top: 4px; }
+  .badge { display: inline-block; background: #FFF3D6; border: 1px solid #F5A623; color: #8B5A00; font-size: 11px; font-weight: 600; padding: 2px 10px; border-radius: 20px; margin-top: 8px; }
+
+  /* SECTION */
+  .section { margin-bottom: 56px; }
+  .section-title {
+    font-size: 13px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+    color: #1B3B8A; background: #EDF2FF; border-left: 4px solid #1B3B8A;
+    padding: 8px 14px; margin-bottom: 28px; border-radius: 0 6px 6px 0;
+  }
+
+  /* FLOW CONTAINER */
+  .flow { display: flex; flex-direction: column; align-items: center; }
+
+  /* NODES */
+  .node {
+    border-radius: 8px; padding: 10px 18px; font-size: 13px; font-weight: 600;
+    text-align: center; line-height: 1.4; position: relative;
+  }
+  .node sub { display: block; font-size: 11px; font-weight: 400; margin-top: 3px; opacity: .8; }
+  .node-start  { background: #E6F1FB; border: 1.5px solid #185FA5; color: #0C447C; min-width: 260px; }
+  .node-system { background: #F1EFE8; border: 1.5px solid #888780; color: #444441; min-width: 260px; }
+  .node-done   { background: #EAF3DE; border: 1.5px solid #3B6D11; color: #27500A; min-width: 260px; }
+  .node-decide { background: #FAEEDA; border: 1.5px solid #854F0B; color: #633806; min-width: 200px; border-radius: 6px; }
+  .node-action { background: #EEEDFE; border: 1.5px solid #534AB7; color: #3C3489; min-width: 180px; }
+  .node-warn   { background: #FAECE7; border: 1.5px solid #993C1D; color: #712B13; min-width: 180px; }
+  .node-teal   { background: #E1F5EE; border: 1.5px solid #0F6E56; color: #085041; min-width: 200px; }
+  .node-gray   { background: #fff; border: 1.5px solid #AAAAAA; color: #333; min-width: 160px; }
+
+  /* ARROWS */
+  .arr { color: #AAAAAA; font-size: 18px; line-height: 1; padding: 3px 0; text-align: center; }
+  .lbl { font-size: 11px; color: #888; text-align: center; padding: 1px 0; }
+
+  /* SPLIT — two columns side by side */
+  .split { display: flex; gap: 0; width: 100%; justify-content: center; margin: 0; }
+  .branch { display: flex; flex-direction: column; align-items: center; flex: 1; max-width: 280px; padding: 0 10px; }
+  .branch-divider { width: 1px; background: #DDD; margin: 0 4px; align-self: stretch; }
+
+  /* THREE columns */
+  .split3 { display: flex; gap: 0; width: 100%; justify-content: center; }
+  .branch3 { display: flex; flex-direction: column; align-items: center; flex: 1; max-width: 220px; padding: 0 8px; }
+
+  /* COLUMN HEADERS */
+  .col-head {
+    font-size: 12px; font-weight: 700; color: #1B3B8A;
+    text-align: center; padding: 6px 12px 10px;
+    border-bottom: 1.5px solid #1B3B8A; width: 100%; margin-bottom: 12px;
+  }
+
+  /* PANEL — two side-by-side panels */
+  .panels { display: flex; gap: 20px; width: 100%; }
+  .panel { flex: 1; background: #fff; border: 1px solid #E0DED8; border-radius: 10px; padding: 20px 16px; }
+
+  /* RULES TABLE */
+  .rules-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 4px; }
+  .rules-table th { background: #1B3B8A; color: #fff; padding: 9px 12px; text-align: left; font-size: 12px; }
+  .rules-table td { padding: 8px 12px; border-bottom: 1px solid #EBEBEB; vertical-align: top; }
+  .rules-table tr:nth-child(even) td { background: #F7F6F2; }
+  .rules-table td:first-child { font-weight: 600; color: #1B3B8A; white-space: nowrap; }
+
+  /* LEGEND */
+  .legend { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 32px; }
+  .legend-item { display: flex; align-items: center; gap: 7px; font-size: 12px; color: #444; }
+  .legend-dot { width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0; }
+
+  /* NOTE */
+  .note {
+    background: #FFFBF0; border-left: 3px solid #F5A623;
+    padding: 9px 14px; font-size: 12px; color: #6B4C00; font-style: italic;
+    border-radius: 0 6px 6px 0; margin: 10px 0;
+  }
+
+  /* DIVIDER */
+  hr { border: none; border-top: 1px dashed #CCC; margin: 40px 0; }
+
+  /* PAGE FOOTER */
+  .footer { text-align: center; font-size: 12px; color: #AAA; margin-top: 60px; padding-top: 16px; border-top: 1px solid #DDD; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- HEADER -->
+  <div class="header">
+    <h1>Immigroov — Booking Lifecycle Flow</h1>
+    <p>Developer reference · All booking states, cancel, reschedule and no-show flows</p>
+    <span class="badge">Internal · June 2026</span>
+  </div>
+
+  <!-- LEGEND -->
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:#E6F1FB;border:1.5px solid #185FA5"></div>Customer action</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#E1F5EE;border:1.5px solid #0F6E56"></div>Mentor action</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#F1EFE8;border:1.5px solid #888780"></div>System / auto</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#FAEEDA;border:1.5px solid #854F0B"></div>Decision</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#EEEDFE;border:1.5px solid #534AB7"></div>Request / proposal</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#FAECE7;border:1.5px solid #993C1D"></div>Warning / penalty</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#EAF3DE;border:1.5px solid #3B6D11"></div>Done / confirmed</div>
+  </div>
+
+  <!-- ═══════════════════════════════ DIAGRAM 1 ═══════════════════════════════ -->
+  <div class="section">
+    <div class="section-title">Diagram 1 — Booking confirmed</div>
+    <div class="flow">
+      <div class="node node-start">Customer books slot + pays</div>
+      <div class="arr">↓</div>
+      <div class="node node-system">Payment confirmed · emails sent</div>
+      <div class="arr">↓</div>
+      <div class="node node-done" style="font-size:15px;padding:12px 24px">Booking confirmed</div>
+      <div class="arr">↓</div>
+      <div class="split3" style="margin-top:8px">
+        <div class="branch3">
+          <div class="node node-warn" style="width:100%">Cancel<sub>→ Diagram 2</sub></div>
+        </div>
+        <div class="branch3">
+          <div class="node node-action" style="width:100%">Reschedule<sub>→ Diagram 3</sub></div>
+        </div>
+        <div class="branch3">
+          <div class="node node-decide" style="width:100%">No-show<sub>→ Diagram 4</sub></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <hr>
+
+  <!-- ═══════════════════════════════ DIAGRAM 2 ═══════════════════════════════ -->
+  <div class="section">
+    <div class="section-title">Diagram 2 — Cancel flow</div>
+    <div class="panels">
+
+      <!-- Customer cancel -->
+      <div class="panel">
+        <div class="col-head">Customer cancels</div>
+        <div class="flow">
+          <div class="node node-decide" style="width:100%">Within 24 hrs of session?</div>
+          <div class="split" style="margin-top:8px">
+            <div class="branch">
+              <div class="lbl">Yes</div>
+              <div class="arr">↓</div>
+              <div class="node node-start" style="width:100%">Customer picks new slot</div>
+              <div class="arr">↓</div>
+              <div class="node node-done" style="width:100%">Confirmed</div>
+            </div>
+            <div class="branch-divider"></div>
+            <div class="branch">
+              <div class="lbl">No</div>
+              <div class="arr">↓</div>
+              <div class="node node-action" style="width:100%">Request sent to mentor<sub>48 hr response window</sub></div>
+              <div class="arr">↓</div>
+              <div class="node node-decide" style="width:100%">Mentor accepts?<sub>no reply = auto-approved</sub></div>
+              <div class="split" style="margin-top:8px">
+                <div class="branch">
+                  <div class="lbl">Yes / no reply</div>
+                  <div class="arr">↓</div>
+                  <div class="node node-start" style="width:100%;font-size:12px">Customer picks new slot</div>
+                  <div class="arr">↓</div>
+                  <div class="node node-done" style="width:100%;font-size:12px">Confirmed</div>
+                </div>
+                <div class="branch-divider"></div>
+                <div class="branch">
+                  <div class="lbl">Rejected</div>
+                  <div class="arr">↓</div>
+                  <div class="node node-gray" style="width:100%;font-size:12px">Customer pays 50%<sub>Booking cancelled</sub></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mentor cancel -->
+      <div class="panel">
+        <div class="col-head">Mentor cancels</div>
+        <div class="flow">
+          <div class="node node-decide" style="width:100%">Within 24 hrs of session?</div>
+          <div class="split" style="margin-top:8px">
+            <div class="branch">
+              <div class="lbl">Yes</div>
+              <div class="arr">↓</div>
+              <div class="node node-done" style="width:100%">No penalty</div>
+              <div class="arr">↓</div>
+              <div class="node node-done" style="width:100%">Cancelled · emails sent</div>
+            </div>
+            <div class="branch-divider"></div>
+            <div class="branch">
+              <div class="lbl">No</div>
+              <div class="arr">↓</div>
+              <div class="node node-warn" style="width:100%">Warning shown<sub>25% penalty deducted</sub></div>
+              <div class="arr">↓</div>
+              <div class="node node-done" style="width:100%">Cancelled · emails sent</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <hr>
+
+  <!-- ═══════════════════════════════ DIAGRAM 3 ═══════════════════════════════ -->
+  <div class="section">
+    <div class="section-title">Diagram 3 — Reschedule flow</div>
+    <div class="note">Max 2 reschedules per booking. A 3rd attempt by either party = auto-cancel + full refund + 100% penalty on the initiating party.</div>
+    <div style="height:20px"></div>
+    <div class="panels">
+
+      <!-- Customer reschedule -->
+      <div class="panel">
+        <div class="col-head">Customer reschedules</div>
+        <div class="flow">
+          <div class="node node-decide" style="width:100%">Within 24 hrs of session?</div>
+          <div class="split" style="margin-top:8px">
+            <div class="branch">
+              <div class="lbl">Yes</div>
+              <div class="arr">↓</div>
+              <div class="node node-start" style="width:100%">Customer picks new slot</div>
+              <div class="arr">↓</div>
+              <div class="node node-done" style="width:100%">Auto-confirmed</div>
+            </div>
+            <div class="branch-divider"></div>
+            <div class="branch">
+              <div class="lbl">No</div>
+              <div class="arr">↓</div>
+              <div class="node node-action" style="width:100%">Request to mentor<sub>MIN(48h, T−2h) window</sub></div>
+              <div class="arr">↓</div>
+              <div class="node node-decide" style="width:100%">Mentor responds?<sub>no reply = auto-approved</sub></div>
+              <div class="split" style="margin-top:8px">
+                <div class="branch">
+                  <div class="lbl">Yes / no reply</div>
+                  <div class="arr">↓</div>
+                  <div class="node node-start" style="width:100%;font-size:12px">Customer picks slot</div>
+                  <div class="arr">↓</div>
+                  <div class="node node-done" style="width:100%;font-size:12px">Auto-confirmed</div>
+                </div>
+                <div class="branch-divider"></div>
+                <div class="branch">
+                  <div class="lbl">Rejected</div>
+                  <div class="arr">↓</div>
+                  <div class="node node-gray" style="width:100%;font-size:12px">Customer pays 50%<sub>Cancelled</sub></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mentor reschedule -->
+      <div class="panel">
+        <div class="col-head">Mentor reschedules</div>
+        <div class="flow">
+          <div class="node node-teal" style="width:100%">Mentor proposes slots<sub>Existing calendar or new date/range</sub></div>
+          <div class="arr">↓</div>
+          <div class="node node-decide" style="width:100%">Within 24 hrs of session?<sub>System notifies mentor</sub></div>
+          <div class="split" style="margin-top:8px">
+            <div class="branch">
+              <div class="lbl">Yes</div>
+              <div class="arr">↓</div>
+              <div class="node node-done" style="width:100%">No penalty</div>
+            </div>
+            <div class="branch-divider"></div>
+            <div class="branch">
+              <div class="lbl">No</div>
+              <div class="arr">↓</div>
+              <div class="node node-warn" style="width:100%">Warning shown<sub>25% penalty flagged</sub></div>
+            </div>
+          </div>
+          <div class="arr">↓</div>
+          <div class="node node-action" style="width:100%">Customer responds<sub>MIN(48h, T−2h) window</sub></div>
+          <div class="arr">↓</div>
+          <div class="node node-decide" style="width:100%">Customer accepts?<sub>No response = original reinstated</sub></div>
+          <div class="split" style="margin-top:8px">
+            <div class="branch">
+              <div class="lbl">Yes</div>
+              <div class="arr">↓</div>
+              <div class="node node-done" style="width:100%;font-size:12px">Auto-confirmed<sub>Emails + .ics sent</sub></div>
+            </div>
+            <div class="branch-divider"></div>
+            <div class="branch">
+              <div class="lbl">No (deadline crossed)</div>
+              <div class="arr">↓</div>
+              <div class="node node-warn" style="width:100%;font-size:12px">Full refund<sub>Penalty on mentor</sub></div>
+            </div>
+          </div>
+          <div class="note" style="margin-top:12px;width:100%">Within-deadline rejection → credit only, no cash refund</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <hr>
+
+  <!-- ═══════════════════════════════ DIAGRAM 4 ═══════════════════════════════ -->
+  <div class="section">
+    <div class="section-title">Diagram 4 — No-show handling</div>
+    <div class="flow">
+      <div class="node node-system" style="min-width:320px">T + 10 min · System detects no-show · Both parties alerted</div>
+      <div class="arr">↓</div>
+      <div class="node node-decide">Who no-showed?</div>
+    </div>
+
+    <div style="height:20px"></div>
+    <div class="panels">
+
+      <!-- Mentor no-show -->
+      <div class="panel">
+        <div class="col-head">Mentor no-showed — customer gets 3 choices</div>
+        <div class="split3">
+          <div class="branch3">
+            <div class="node node-start" style="width:100%;font-size:12px">Rebook same mentor</div>
+            <div class="arr">↓</div>
+            <div class="node node-done" style="width:100%;font-size:12px">Penalty waived<sub>Reschedule cycle starts</sub></div>
+          </div>
+          <div class="branch3">
+            <div class="node node-start" style="width:100%;font-size:12px">Rebook different mentor</div>
+            <div class="arr">↓</div>
+            <div class="node node-done" style="width:100%;font-size:12px">Penalty applied<sub>New booking</sub></div>
+          </div>
+          <div class="branch3">
+            <div class="node node-start" style="width:100%;font-size:12px">Request full refund</div>
+            <div class="arr">↓</div>
+            <div class="node node-warn" style="width:100%;font-size:12px">Penalty applied<sub>Refund issued</sub></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Customer no-show -->
+      <div class="panel">
+        <div class="col-head">Customer no-showed — mentor gets 2 choices</div>
+        <div class="split">
+          <div class="branch">
+            <div class="node node-teal" style="width:100%">Accept rebook</div>
+            <div class="arr">↓</div>
+            <div class="node node-done" style="width:100%">Reschedule cycle starts</div>
+          </div>
+          <div class="branch-divider"></div>
+          <div class="branch">
+            <div class="node node-teal" style="width:100%">Reject rebook</div>
+            <div class="arr">↓</div>
+            <div class="node node-done" style="width:100%">Session complete<sub>Mentor paid in full</sub></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Strike system -->
+    <div style="height:24px"></div>
+    <div class="panel" style="background:#fff;border:1px solid #E0DED8;border-radius:10px;padding:20px">
+      <div class="col-head" style="text-align:left;border-bottom:1.5px solid #1B3B8A;padding-bottom:8px;margin-bottom:14px">Mentor no-show strike system</div>
+      <table class="rules-table">
+        <tr><th>Strike</th><th>Consequence</th></tr>
+        <tr><td>Strike 1</td><td>Warning only. No financial penalty.</td></tr>
+        <tr><td>Strike 2</td><td>Warning + Immigroov ops check-in with the mentor.</td></tr>
+        <tr><td>Strike 3+</td><td>25% of session fee deducted from mentor payout per no-show.</td></tr>
+        <tr><td>Reset condition</td><td>Zero no-shows for 90 consecutive days → strike counter resets to 0.</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <hr>
+
+  <!-- ═══════════════════════════════ RULES ═══════════════════════════════ -->
+  <div class="section">
+    <div class="section-title">Platform-wide rules — quick reference</div>
+    <table class="rules-table">
+      <tr><th style="width:220px">Rule</th><th>Definition</th></tr>
+      <tr><td>Deadline</td><td>24 hours before session start. Within = free action. Past = approval needed or penalty applies.</td></tr>
+      <tr><td>Response window</td><td>MIN(48 hrs from proposal, session start − 2 hrs). The response window never extends past T−2h.</td></tr>
+      <tr><td>2-hour session buffer</td><td>Any action requiring a response is blocked if less than 2 hrs remain before session. Treated as no-show.</td></tr>
+      <tr><td>Reschedule cap</td><td>Max 2 per booking. 3rd attempt → auto-cancel + full refund + 100% penalty on initiating party.</td></tr>
+      <tr><td>No mentor response</td><td>Auto-approved when response window expires. Customer's request proceeds.</td></tr>
+      <tr><td>No customer response</td><td>Original booking reinstated. No penalty, no refund.</td></tr>
+      <tr><td>Refund — before 1st session</td><td>Full cash refund.</td></tr>
+      <tr><td>Refund — after 1st session</td><td>Credit only. No cash refund for unused sessions in a package.</td></tr>
+      <tr><td>Within-deadline mentor reschedule rejected by customer</td><td>Customer gets credit only. No cash refund.</td></tr>
+      <tr><td>Past-deadline mentor reschedule rejected by customer</td><td>Full cash refund to customer. Penalty on mentor.</td></tr>
+      <tr><td>Customer past-deadline cancel rejected by mentor</td><td>Customer pays 50% of session fee.</td></tr>
+      <tr><td>Mentor past-deadline cancel</td><td>25% penalty deducted from mentor payout.</td></tr>
+    </table>
+  </div>
+
+  <div class="footer">Immigroov Consulting VOF &nbsp;·&nbsp; Confidential &nbsp;·&nbsp; June 2026</div>
+
+</div>
+</body>
+</html>
