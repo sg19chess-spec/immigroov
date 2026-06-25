@@ -316,7 +316,11 @@ Two send paths exist:
 **Admin — `app/admin/page.tsx` + `components/AdminManager.tsx`** (top-nav **Admin** toggle, `/admin`):
 `admin_bookings` (cross-mentor activity feed) and `admin_ledger` (every refund / credit /
 charge / penalty with booking context). Read-only; shows status/ledger totals, an activity
-table, and the full ledger.
+table, and the full ledger. Clicking any row opens `admin_booking_detail(id)` — a modal with
+the booking header, payment + payout (each in its own currency), money totals
+(refund/credit/charge/penalty), and a **reconstructed timeline** (booked → requests →
+proposals → accept/reject → ledger outcomes) merged from `booking_requests`,
+`reschedule_offers` and `booking_ledger`.
 
 The read RPCs `bookings_by_email` / `mentor_sessions` join in the latest open
 `reschedule_offer`, the latest `booking_request`, `reschedule_count`, `no_show_by`, and a
