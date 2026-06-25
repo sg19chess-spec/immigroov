@@ -313,7 +313,7 @@ Two send paths exist:
 **Booking creation — `app/mentor/[id]/page.tsx`:** `get_available_slots`,
 `demo_list_questions`, `book_session_guest`.
 
-**Admin — `components/AdminManager.tsx`** (dashboard `Admin` tab, `?tab=admin`):
+**Admin — `app/admin/page.tsx` + `components/AdminManager.tsx`** (top-nav **Admin** toggle, `/admin`):
 `admin_bookings` (cross-mentor activity feed) and `admin_ledger` (every refund / credit /
 charge / penalty with booking context). Read-only; shows status/ledger totals, an activity
 table, and the full ledger.

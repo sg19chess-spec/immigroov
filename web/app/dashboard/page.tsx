@@ -5,7 +5,6 @@ import ServicesManager from "@/components/ServicesManager";
 import AvailabilityManager from "@/components/AvailabilityManager";
 import SessionsManager from "@/components/SessionsManager";
 import ResourcesManager from "@/components/ResourcesManager";
-import AdminManager from "@/components/AdminManager";
 
 // Mentor console. For the demo you pick which mentor you are; in production this
 // resolves from the signed-in user (current_mentor_id) and the editor RPCs are
@@ -15,7 +14,7 @@ export default function Dashboard() {
   const [mentors, setMentors] = useState<{ mentor_id: number; name: string; mentor_tz: string }[]>([]);
   const [mentorId, setMentorId] = useState<number | null>(null);
   const [tz, setTz] = useState("UTC");
-  const [tab, setTab] = useState<"services" | "availability" | "sessions" | "resources" | "admin">("services");
+  const [tab, setTab] = useState<"services" | "availability" | "sessions" | "resources">("services");
   const [stats, setStats] = useState({ services: 0, active: 0, days: 0, currency: "USD" });
 
   useEffect(() => {
@@ -29,7 +28,7 @@ export default function Dashboard() {
   // deep-link from emails: /dashboard?tab=sessions
   useEffect(() => {
     const t = new URLSearchParams(window.location.search).get("tab");
-    if (t && ["services", "availability", "sessions", "resources", "admin"].includes(t)) setTab(t as typeof tab);
+    if (t && ["services", "availability", "sessions", "resources"].includes(t)) setTab(t as typeof tab);
   }, []);
 
   const loadStats = useCallback(async (id: number) => {
@@ -67,7 +66,7 @@ export default function Dashboard() {
 
       <div style={{ marginBottom: 20 }}>
         <div className="seg">
-          {(["services", "availability", "sessions", "resources", "admin"] as const).map((t) => (
+          {(["services", "availability", "sessions", "resources"] as const).map((t) => (
             <button key={t} className={tab === t ? "on" : ""} onClick={() => setTab(t)} style={{ textTransform: "capitalize" }}>{t}</button>
           ))}
         </div>
@@ -77,7 +76,6 @@ export default function Dashboard() {
       {mentorId && tab === "availability" && <div className="reveal"><AvailabilityManager mentorId={mentorId} mentorTz={tz} /></div>}
       {mentorId && tab === "sessions" && <div className="reveal"><SessionsManager mentorId={mentorId} mentorTz={tz} /></div>}
       {tab === "resources" && <div className="reveal"><ResourcesManager /></div>}
-      {tab === "admin" && <div className="reveal"><AdminManager /></div>}
     </div>
   );
 }

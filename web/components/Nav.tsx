@@ -7,6 +7,7 @@ import { getEmail, clearEmail } from "@/lib/identity";
 export default function Nav() {
   const pathname = usePathname();
   const isMentor = pathname?.startsWith("/dashboard");
+  const isAdmin = pathname?.startsWith("/admin");
   const [email, setEmailS] = useState<string | null>(null);
   const [hidden, setHidden] = useState(false);
 
@@ -41,12 +42,13 @@ export default function Nav() {
       <Link href="/" className="brand"><span className="logo">I<b>G</b></span> Immigroov</Link>
 
       <div style={{ display: "inline-flex", background: "var(--navy-soft)", border: "1px solid var(--line)", borderRadius: 999, padding: 4, gap: 4 }} title="Switch view">
-        <Link href="/" style={seg(!isMentor)}>Mentee</Link>
+        <Link href="/" style={seg(!isMentor && !isAdmin)}>Mentee</Link>
         <Link href="/dashboard" style={seg(!!isMentor)}>Mentor</Link>
+        <Link href="/admin" style={seg(!!isAdmin)}>Admin</Link>
       </div>
 
       <div className="navspace" />
-      {!isMentor && <Link href="/bookings">My sessions</Link>}
+      {!isMentor && !isAdmin && <Link href="/bookings">My sessions</Link>}
       {email && <span className="muted hide-mobile" style={{ fontSize: 13 }}>{email}</span>}
       {email ? (
         <button className="btn-ghost btn-sm" onClick={() => { clearEmail(); location.href = "/"; }}>Sign out</button>
