@@ -6,12 +6,14 @@ import { fmtDate, fmtTime } from "@/lib/format";
 type S = {
   id: number; status: string; slot_time: string; meeting_url: string | null;
   service_title: string; service_duration: number; mentee_name: string; mentee_email: string;
-  mentor_tz: string; mentee_tz: string; mentor_confirmed_at: string | null;
+  mentor_tz: string; mentee_tz: string; mentor_confirmed_at: string | null; reschedule_count: number;
   offer_id: number | null; offer_by: string | null; offer_status: string | null; offer_date: string | null;
-  range_start: string | null; range_end: string | null; requested_date: string | null; selected_time: string | null;
+  range_start: string | null; range_end: string | null; requested_date: string | null; selected_time: string | null; offer_was_late: boolean | null;
+  req_id: number | null; req_kind: string | null; req_initiated_by: string | null; req_status: string | null;
+  ledger_summary: string | null;
 };
 
-// Convert a wall-clock date+time *in tz* to a UTC ISO instant (DST-aware).
+// Wall-clock date+time in tz -> UTC ISO (DST-aware).
 function wallToUtcISO(dateStr: string, timeStr: string, tz: string) {
   const [y, m, d] = dateStr.split("-").map(Number);
   const [hh, mm] = timeStr.split(":").map(Number);
@@ -44,45 +46,47 @@ export default function SessionsManager({ mentorId, mentorTz }: { mentorId: numb
   async function saveNotice() {
     const h = Math.max(0, parseInt(noticeDraft || "0", 10) || 0);
     const { error } = await supabase.rpc("demo_set_cancel_notice", { p_mentor_id: mentorId, p_hours: h });
-    setMsg(error ? error.message : `Cancellation notice set to ${h} hours (applies to you and the mentee).`); load();
+    setMsg(error ? error.message : `Cancellation notice set to ${h} hours.`); load();
   }
   async function confirmAttend(id: number) { await supabase.rpc("mentor_confirm_attendance", { p_booking_id: id }); setMsg("Marked as available — see you there!"); load(); }
-  async function confirmTime(offerId: number) {
-    const { error } = await supabase.rpc("mentor_confirm_reschedule", { p_offer_id: offerId });
-    setMsg(error ? error.message : "New time confirmed — the session has been moved."); load();
+  async function respond(reqId: number, accept: boolean) {
+    const { error } = await supabase.rpc("respond_booking_request", { p_request_id: reqId, p_accept: accept });
+    setMsg(error ? error.message : accept ? "Request approved." : "Request rejected."); load();
   }
   async function cancel(id: number) {
+    const late = new Date(id && rows.find((r) => r.id === id)!.slot_time).getTime() - Date.now() < 24 * 3600 * 1000;
+    if (!confirm(late ? "This is within 24h — cancelling now applies a 25% penalty to your payout. Continue?" : "Cancel this session? The customer is fully refunded.")) return;
     const { error } = await supabase.rpc("cancel_booking", { p_booking_id: id, p_cancelled_by: "mentor" });
     setMsg(error ? error.message : "Session cancelled."); load();
   }
   async function propose(id: number, date: string, start: string, end: string) {
     if (!date || !start || !end) { setMsg("Pick a date, start and end time."); return; }
-    const rs = wallToUtcISO(date, start, mentorTz);
-    const re = wallToUtcISO(date, end, mentorTz);
+    const rs = wallToUtcISO(date, start, mentorTz), re = wallToUtcISO(date, end, mentorTz);
     if (new Date(re) <= new Date(rs)) { setMsg("End time must be after start time."); return; }
-    const { error } = await supabase.rpc("mentor_propose_reschedule", { p_booking_id: id, p_date: date, p_start: rs, p_end: re });
-    setMsg(error ? error.message : "Proposed — the mentee can now pick a time inside your window."); setProposing(null); load();
+    const { data, error } = await supabase.rpc("mentor_propose_reschedule", { p_booking_id: id, p_date: date, p_start: rs, p_end: re });
+    if (error) { setMsg(error.message); return; }
+    setMsg(data === -1 ? "Reschedule limit reached — the booking was auto-cancelled with a full refund." : "Proposed — the customer can now pick a time in your window.");
+    setProposing(null); load();
   }
 
   const now = Date.now();
-  const upcoming = rows.filter((b) => isActive(b.status) && new Date(b.slot_time).getTime() >= now)
-    .sort((a, b) => +new Date(a.slot_time) - +new Date(b.slot_time));
+  const upcoming = rows.filter((b) => isActive(b.status) && new Date(b.slot_time).getTime() >= now).sort((a, b) => +new Date(a.slot_time) - +new Date(b.slot_time));
   const past = rows.filter((b) => !(isActive(b.status) && new Date(b.slot_time).getTime() >= now));
 
   function manageRow(b: S) {
     const slotMs = new Date(b.slot_time).getTime();
-    const soon = slotMs > now && slotMs - now < 60 * 60 * 1000 && !b.mentor_confirmed_at && !b.offer_id;
-    const menteeSelected = b.offer_id && b.offer_status === "mentee_selected" && b.selected_time;
+    const pendingCustReq = b.req_id && b.req_status === "pending" && b.req_initiated_by === "customer";
     const waitingMentee = b.offer_id && b.offer_by === "mentor" && b.offer_status === "pending";
     const menteeAskedDate = b.offer_id && b.offer_by === "user" && b.offer_status === "pending";
-    const showActions = !waitingMentee && !menteeAskedDate && !menteeSelected && proposing !== b.id;
+    const soon = slotMs > now && slotMs - now < 60 * 60 * 1000 && !b.mentor_confirmed_at && !b.offer_id && !pendingCustReq;
+    const showActions = !waitingMentee && !menteeAskedDate && !pendingCustReq && proposing !== b.id;
     return (
       <div className="sess-card" key={b.id}>
         <div className="sess-card-head">
           <div className="sess-info">
             <div style={{ fontWeight: 700 }}>{b.service_title} <span className={`pill st-${b.status}`} style={{ marginLeft: 4 }}>{b.status}</span></div>
             <div className="muted" style={{ fontSize: 12.5, marginTop: 2 }}>with {b.mentee_name} · {b.mentee_email}</div>
-            <div style={{ fontSize: 13, marginTop: 4 }}><b>{fmtTime(b.slot_time, mentorTz)}</b> · {fmtDate(b.slot_time, mentorTz)}{b.mentor_confirmed_at ? " · ✓ you confirmed" : ""}</div>
+            <div style={{ fontSize: 13, marginTop: 4 }}><b>{fmtTime(b.slot_time, mentorTz)}</b> · {fmtDate(b.slot_time, mentorTz)}{b.reschedule_count > 0 ? ` · moved ${b.reschedule_count}×` : ""}{b.mentor_confirmed_at ? " · ✓ confirmed" : ""}</div>
           </div>
           {showActions && (
             <div className="sess-actions">
@@ -92,6 +96,19 @@ export default function SessionsManager({ mentorId, mentorTz }: { mentorId: numb
             </div>
           )}
         </div>
+
+        {pendingCustReq && (
+          <div className="banner" style={{ background: "var(--orange-soft)", border: "1px solid var(--orange)", marginTop: 10 }}>
+            <b>{b.mentee_name} requested to {b.req_kind === "cancel" ? "cancel" : "reschedule"} this session.</b>
+            <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>
+              {b.req_kind === "cancel" ? "Approve = full refund. Reject = customer pays 50%." : "Approve so they can pick a new time."} No reply auto-approves.
+            </div>
+            <div className="actions" style={{ marginTop: 8, gap: 8 }}>
+              <button className="btn-cta btn-sm" onClick={() => respond(b.req_id!, true)}>Approve</button>
+              <button className="btn-ghost btn-sm" style={{ color: "var(--bad)" }} onClick={() => respond(b.req_id!, false)}>Reject</button>
+            </div>
+          </div>
+        )}
 
         {soon && (
           <div className="banner" style={{ background: "var(--orange-soft)", border: "1px solid var(--orange)", marginTop: 10 }}>
@@ -103,23 +120,10 @@ export default function SessionsManager({ mentorId, mentorTz }: { mentorId: numb
           </div>
         )}
 
-        {menteeSelected && (
-          <div className="banner" style={{ background: "var(--orange-soft)", border: "1px solid var(--orange)", marginTop: 10 }}>
-            <b>{b.mentee_name} selected a time — confirm to lock it in:</b>
-            <div style={{ fontSize: 13, marginTop: 4 }}>
-              {fmtTime(b.selected_time!, mentorTz)} · {fmtDate(b.selected_time!, mentorTz)} ({mentorTz})
-              <span className="muted"> · their time {fmtTime(b.selected_time!, b.mentee_tz)} ({b.mentee_tz})</span>
-            </div>
-            <div className="actions" style={{ marginTop: 8, gap: 8 }}>
-              <button className="btn-cta btn-sm" onClick={() => confirmTime(b.offer_id!)}>Confirm this time</button>
-              <button className="btn-ghost btn-sm" onClick={() => setProposing(b.id)}>Propose a different range</button>
-            </div>
-          </div>
-        )}
-
         {waitingMentee && (
           <div className="banner ok" style={{ marginTop: 10 }}>
             Waiting for {b.mentee_name} to pick a time on <b>{b.offer_date}</b>, between {fmtTime(b.range_start!, mentorTz)}–{fmtTime(b.range_end!, mentorTz)} ({mentorTz}).
+            {b.offer_was_late && <span className="muted"> · within 24h → 25% penalty if accepted.</span>}
           </div>
         )}
 
@@ -144,6 +148,7 @@ export default function SessionsManager({ mentorId, mentorTz }: { mentorId: numb
           <div style={{ fontWeight: 700 }}>{b.service_title} <span className={`pill st-${b.status}`} style={{ marginLeft: 4 }}>{b.status}</span></div>
           <div className="muted" style={{ fontSize: 12.5, marginTop: 2 }}>with {b.mentee_name} · {b.mentee_email}</div>
           <div style={{ fontSize: 13, marginTop: 4 }}>{fmtTime(b.slot_time, mentorTz)} · {fmtDate(b.slot_time, mentorTz)} ({mentorTz})</div>
+          {b.ledger_summary && <div className="faint" style={{ fontSize: 11.5, marginTop: 4 }}>💸 {b.ledger_summary}</div>}
         </div>
       </div>
     );
@@ -154,7 +159,7 @@ export default function SessionsManager({ mentorId, mentorTz }: { mentorId: numb
       <div className="row-between sess-head" style={{ marginBottom: 6, flexWrap: "wrap", gap: 10 }}>
         <div>
           <h2 className="sec" style={{ fontSize: 18 }}>Your sessions</h2>
-          <div className="muted" style={{ fontSize: 12.5 }}>Confirm attendance, reschedule, or cancel. Times shown in {mentorTz}.</div>
+          <div className="muted" style={{ fontSize: 12.5 }}>Respond to requests, reschedule, or cancel. Times shown in {mentorTz}.</div>
         </div>
         <div className="sess-notice" style={{ display: "flex", alignItems: "flex-end", gap: 8 }}>
           <div style={{ flex: 1 }}><label className="fld">Cancellation notice (hrs)</label><input type="number" min={0} style={{ width: 110 }} value={noticeDraft} onChange={(e) => setNoticeDraft(e.target.value)} /></div>
@@ -165,10 +170,8 @@ export default function SessionsManager({ mentorId, mentorTz }: { mentorId: numb
 
       {upcoming.length > 0 && <h3 style={{ fontSize: 14, color: "var(--muted)", margin: "14px 0 8px" }}>Upcoming ({upcoming.length})</h3>}
       {upcoming.map(manageRow)}
-
       {past.length > 0 && <h3 style={{ fontSize: 14, color: "var(--muted)", margin: "22px 0 8px" }}>Past &amp; completed ({past.length})</h3>}
       {past.map(pastRow)}
-
       {rows.length === 0 && <div className="empty" style={{ padding: "32px 10px" }}><div className="ico">📅</div>No sessions yet.</div>}
     </div>
   );
