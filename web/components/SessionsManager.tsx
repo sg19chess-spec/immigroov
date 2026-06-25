@@ -6,7 +6,7 @@ import { fmtDate, fmtTime } from "@/lib/format";
 type S = {
   id: number; status: string; slot_time: string; meeting_url: string | null;
   service_title: string; service_duration: number; mentee_name: string; mentee_email: string;
-  mentor_tz: string; mentee_tz: string; mentor_confirmed_at: string | null; reschedule_count: number;
+  mentor_tz: string; mentee_tz: string; mentor_confirmed_at: string | null; reschedule_count: number; no_show_by: string | null;
   offer_id: number | null; offer_by: string | null; offer_status: string | null; offer_date: string | null;
   range_start: string | null; range_end: string | null; requested_date: string | null; selected_time: string | null; offer_was_late: boolean | null;
   req_id: number | null; req_kind: string | null; req_initiated_by: string | null; req_status: string | null;
@@ -30,17 +30,29 @@ export default function SessionsManager({ mentorId, mentorTz }: { mentorId: numb
   const supabase = createClient();
   const [rows, setRows] = useState<S[]>([]);
   const [noticeDraft, setNoticeDraft] = useState("24");
+  const [strikes, setStrikes] = useState(0);
   const [msg, setMsg] = useState<string | null>(null);
   const [proposing, setProposing] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     const [{ data }, { data: m }] = await Promise.all([
       supabase.rpc("mentor_sessions", { p_mentor_id: mentorId }),
-      supabase.from("mentors").select("cancel_notice_hours").eq("id", mentorId).single(),
+      supabase.from("mentors").select("cancel_notice_hours, no_show_strikes").eq("id", mentorId).single(),
     ]);
     setRows((data || []) as S[]);
     setNoticeDraft(String(m?.cancel_notice_hours ?? 24));
+    setStrikes(m?.no_show_strikes ?? 0);
   }, [supabase, mentorId]);
+
+  async function flagCustomerNoShow(id: number) {
+    if (!confirm("Report that the customer didn't show up? You can only do this after the start time.")) return;
+    const { error } = await supabase.rpc("flag_no_show", { p_booking_id: id, p_no_show_party: "customer" });
+    setMsg(error ? error.message : "Reported — choose how to proceed."); load();
+  }
+  async function resolveCustomerNoShow(id: number, choice: string) {
+    const { error } = await supabase.rpc("resolve_customer_no_show", { p_booking_id: id, p_choice: choice });
+    setMsg(error ? error.message : choice === "accept_rebook" ? "Rebook accepted — it can now be rescheduled." : "Session closed — you're paid in full."); load();
+  }
   useEffect(() => { load(); }, [load]);
 
   async function saveNotice() {
@@ -142,6 +154,10 @@ export default function SessionsManager({ mentorId, mentorTz }: { mentorId: numb
   }
 
   function pastRow(b: S) {
+    const slotPassed = Date.now() > new Date(b.slot_time).getTime() + 10 * 60000;
+    const canReport = (b.status === "confirmed" || b.status === "rescheduled") && slotPassed;
+    const custNoShowOpen = b.status === "no_show" && b.no_show_by === "customer" && !b.ledger_summary;
+    const mentorNoShow = b.status === "no_show" && b.no_show_by === "mentor";
     return (
       <div className="sess-card past" key={b.id}>
         <div style={{ minWidth: 0 }}>
@@ -150,6 +166,21 @@ export default function SessionsManager({ mentorId, mentorTz }: { mentorId: numb
           <div style={{ fontSize: 13, marginTop: 4 }}>{fmtTime(b.slot_time, mentorTz)} · {fmtDate(b.slot_time, mentorTz)} ({mentorTz})</div>
           {b.ledger_summary && <div className="faint" style={{ fontSize: 11.5, marginTop: 4 }}>💸 {b.ledger_summary}</div>}
         </div>
+        {canReport && (
+          <div className="actions" style={{ marginTop: 8 }}>
+            <button className="btn-ghost btn-sm" style={{ color: "var(--bad)" }} onClick={() => flagCustomerNoShow(b.id)}>Customer didn't show</button>
+          </div>
+        )}
+        {custNoShowOpen && (
+          <div className="banner" style={{ background: "var(--orange-soft)", border: "1px solid var(--orange)", marginTop: 8 }}>
+            <b>{b.mentee_name} didn't show — what next?</b>
+            <div className="actions" style={{ marginTop: 8, gap: 8 }}>
+              <button className="btn-cta btn-sm" onClick={() => resolveCustomerNoShow(b.id, "accept_rebook")}>Accept rebook</button>
+              <button className="btn-ghost btn-sm" onClick={() => resolveCustomerNoShow(b.id, "reject")}>Close (paid in full)</button>
+            </div>
+          </div>
+        )}
+        {mentorNoShow && <div className="banner" style={{ background: "var(--navy-soft)", border: "1px solid var(--line)", marginTop: 8, fontSize: 12.5 }}>You were marked as a no-show — the customer chooses how to proceed.</div>}
       </div>
     );
   }
@@ -160,6 +191,7 @@ export default function SessionsManager({ mentorId, mentorTz }: { mentorId: numb
         <div>
           <h2 className="sec" style={{ fontSize: 18 }}>Your sessions</h2>
           <div className="muted" style={{ fontSize: 12.5 }}>Respond to requests, reschedule, or cancel. Times shown in {mentorTz}.</div>
+          {strikes > 0 && <span className="pill st-pending" style={{ marginTop: 6, display: "inline-block" }}>⚠ {strikes} no-show strike{strikes > 1 ? "s" : ""}{strikes >= 3 ? " · 25% penalty active" : ""}</span>}
         </div>
         <div className="sess-notice" style={{ display: "flex", alignItems: "flex-end", gap: 8 }}>
           <div style={{ flex: 1 }}><label className="fld">Cancellation notice (hrs)</label><input type="number" min={0} style={{ width: 110 }} value={noticeDraft} onChange={(e) => setNoticeDraft(e.target.value)} /></div>

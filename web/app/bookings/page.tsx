@@ -9,7 +9,7 @@ type B = {
   id: number; status: string; slot_time: string; meeting_url: string | null;
   service_title: string; mentor_name: string; mentor_tz: string; customer_tz: string;
   cost: number; cost_currency: string; mentor_earn: number; mentor_currency: string;
-  service_duration: number; mentor_id: number; service_id: number; reschedule_count: number;
+  service_duration: number; mentor_id: number; service_id: number; reschedule_count: number; no_show_by: string | null;
   offer_id: number | null; offer_by: string | null; offer_status: string | null; offer_date: string | null;
   range_start: string | null; range_end: string | null; requested_date: string | null; selected_time: string | null; offer_was_late: boolean | null;
   req_id: number | null; req_kind: string | null; req_initiated_by: string | null; req_status: string | null;
@@ -66,11 +66,20 @@ export default function Bookings() {
     const { data, error } = await supabase.rpc("request_reschedule", { p_booking_id: bookingId });
     setMsg(error ? error.message : data === -1 ? "Reschedule limit reached — booking auto-cancelled with a full refund." : "Reschedule request sent to your mentor."); refresh();
   }
+  async function flagNoShow(id: number) {
+    if (!confirm("Report that your mentor didn't show up? You can only do this after the start time.")) return;
+    const { error } = await supabase.rpc("flag_no_show", { p_booking_id: id, p_no_show_party: "mentor" });
+    setMsg(error ? error.message : "Reported — choose how you'd like to proceed."); refresh();
+  }
+  async function resolveMentorNoShow(id: number, choice: string) {
+    const { error } = await supabase.rpc("resolve_mentor_no_show", { p_booking_id: id, p_choice: choice });
+    setMsg(error ? error.message : choice === "rebook_same" ? "Rebooked — use Reschedule to pick a new time." : choice === "refund" ? "Full refund recorded." : "Credit recorded — find another mentor."); refresh();
+  }
 
   const now = Date.now();
   const upcoming = rows.filter((b) => new Date(b.slot_time).getTime() >= now && !["cancelled", "completed", "no_show"].includes(b.status));
   const past = rows.filter((b) => !upcoming.includes(b));
-  const h = { cancel, accept, reject, requestDate, customerReschedule, requestReschedule };
+  const h = { cancel, accept, reject, requestDate, customerReschedule, requestReschedule, flagNoShow, resolveMentorNoShow };
 
   return (
     <div className="container">
@@ -91,6 +100,7 @@ export default function Bookings() {
 type Handlers = {
   cancel: (b: B) => void; accept: (o: number, s: string) => void; reject: (o: number) => void;
   requestDate: (id: number, d: string) => void; customerReschedule: (id: number, s: string) => void; requestReschedule: (id: number) => void;
+  flagNoShow: (id: number) => void; resolveMentorNoShow: (id: number, choice: string) => void;
 };
 
 function Card({ b, tz, i, h, dim }: { b: B; tz: string; i: number; h: Handlers; dim?: boolean }) {
@@ -105,6 +115,10 @@ function Card({ b, tz, i, h, dim }: { b: B; tz: string; i: number; h: Handlers; 
   const rsReqRejected = active && b.req_id && b.req_kind === "reschedule" && b.req_status === "rejected";
   const slots = mentorOffer ? slotsIn(b.range_start!, b.range_end!, b.service_duration) : [];
   const busy = mentorOffer || waitingMentor || cancelReq || rsReqPending;
+  const slotPassed = Date.now() > new Date(b.slot_time).getTime() + 10 * 60000;
+  const canReport = (b.status === "confirmed" || b.status === "rescheduled") && slotPassed;
+  const mentorNoShowOpen = b.status === "no_show" && b.no_show_by === "mentor" && !b.ledger_summary;
+  const customerNoShow = b.status === "no_show" && b.no_show_by === "customer";
 
   function startReschedule() {
     if (isLate(b.slot_time) && !rsReqApproved) h.requestReschedule(b.id);
@@ -158,6 +172,18 @@ function Card({ b, tz, i, h, dim }: { b: B; tz: string; i: number; h: Handlers; 
         </div>
       )}
 
+      {mentorNoShowOpen && (
+        <div style={{ padding: "12px 20px", borderTop: "1px solid var(--line)", background: "var(--orange-soft)" }}>
+          <div style={{ fontWeight: 700, fontSize: 13.5 }}>Your mentor didn't show — what next?</div>
+          <div className="actions" style={{ marginTop: 8, gap: 8, flexWrap: "wrap" }}>
+            <button className="btn-cta btn-sm" onClick={() => h.resolveMentorNoShow(b.id, "rebook_same")}>Rebook same mentor</button>
+            <button className="btn-ghost btn-sm" onClick={() => h.resolveMentorNoShow(b.id, "rebook_different")}>Rebook a different mentor</button>
+            <button className="btn-ghost btn-sm" onClick={() => h.resolveMentorNoShow(b.id, "refund")}>Full refund</button>
+          </div>
+        </div>
+      )}
+      {customerNoShow && <Note>You were marked as a no-show. Your mentor will decide whether to rebook or close the session.</Note>}
+
       {picking && <RescheduleSlots b={b} tz={tz} onPick={(s) => { setPicking(false); h.customerReschedule(b.id, s); }} onClose={() => setPicking(false)} />}
 
       <div style={{ display: "flex", justifyContent: "space-between", padding: "12px 20px", borderTop: "1px solid var(--line)", fontSize: 12, background: "var(--surface-2)" }}>
@@ -167,10 +193,11 @@ function Card({ b, tz, i, h, dim }: { b: B; tz: string; i: number; h: Handlers; 
       {b.ledger_summary && <div className="faint" style={{ fontSize: 11.5, padding: "8px 20px", background: "var(--surface-2)" }}>💸 {b.ledger_summary}</div>}
 
       <div style={{ display: "flex", gap: 10, padding: 16, borderTop: "1px solid var(--line)", flexWrap: "wrap" }}>
-        {b.meeting_url && active && <a href={b.meeting_url} target="_blank" className="btn btn-cta" style={{ flex: 1, minWidth: 130 }}>🎥 Join video call</a>}
-        {active && !busy && !picking && <button className="btn-ghost" onClick={startReschedule}>Reschedule</button>}
-        {active && !busy && <button className="btn-ghost" onClick={() => h.cancel(b)}>Cancel</button>}
-        {!active && !b.ledger_summary && <span className="faint" style={{ fontSize: 13, padding: "6px 0" }}>No actions available</span>}
+        {b.meeting_url && active && !canReport && <a href={b.meeting_url} target="_blank" className="btn btn-cta" style={{ flex: 1, minWidth: 130 }}>🎥 Join video call</a>}
+        {active && !busy && !picking && !canReport && <button className="btn-ghost" onClick={startReschedule}>Reschedule</button>}
+        {active && !busy && !canReport && <button className="btn-ghost" onClick={() => h.cancel(b)}>Cancel</button>}
+        {canReport && !busy && <button className="btn-ghost" style={{ color: "var(--bad)" }} onClick={() => h.flagNoShow(b.id)}>Mentor didn't show</button>}
+        {!active && !mentorNoShowOpen && !customerNoShow && !b.ledger_summary && <span className="faint" style={{ fontSize: 13, padding: "6px 0" }}>No actions available</span>}
       </div>
     </div>
   );
