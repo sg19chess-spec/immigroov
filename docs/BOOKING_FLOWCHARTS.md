@@ -8,10 +8,16 @@
 > Deadline states come from `booking_deadline_state(slot)`:
 > **≥24h before = free · 2–24h before = late · under 2h = buffer (blocked)**.
 > The response/approval window is `response_window(slot) = MIN(now+48h, slot−2h)`.
+>
+> **Rendered SVGs** live in [`flowcharts/`](flowcharts/) (regenerate from the `.mmd`
+> sources with `mmdc -i <name>.mmd -o <name>.svg -c flowcharts/theme.json`). Each section
+> below shows the image plus its source.
 
 ---
 
 ## 1. Booking confirmation
+
+![Booking confirmation flow](flowcharts/1-confirmation.svg)
 
 ```mermaid
 flowchart TD
@@ -33,6 +39,8 @@ flowchart TD
 ---
 
 ## 2. Cancellation
+
+![Cancellation flow](flowcharts/2-cancellation.svg)
 
 ```mermaid
 flowchart TD
@@ -66,6 +74,8 @@ flowchart TD
 ---
 
 ## 3. Reschedule
+
+![Reschedule flow](flowcharts/3-reschedule.svg)
 
 ```mermaid
 flowchart TD
@@ -133,6 +143,8 @@ flowchart TD
 
 The money is mock — every outcome below is written as rows in `booking_ledger`
 (`kind ∈ refund | credit | charge | penalty`, with a `pct`). Nothing is actually moved.
+
+![Refund and penalty outcomes](flowcharts/4-refund.svg)
 
 ### What the customer gets
 

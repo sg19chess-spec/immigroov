@@ -1,0 +1,25 @@
+flowchart TD
+  q0([Booking ended via...]) --> e{Which path?}
+  e -- "Customer cancel 24h+" --> r1["Customer refund 100%"]
+  e -- "Customer late cancel - approved / no reply" --> r1
+  e -- "Customer late cancel - mentor rejects" --> r2["Customer refund 50% + charge 50%"]
+  e -- "Mentor cancels (free or late)" --> r1
+  e -- "Mentor reschedule rejected - within deadline" --> r3["Customer credit 100% (no cash)"]
+  e -- "Mentor reschedule rejected - past deadline" --> r1
+  e -- "3rd reschedule attempt (auto-cancel)" --> r1
+  e -- "Mentor no-show -> request refund" --> r1
+  e -- "Mentor no-show -> rebook different mentor" --> r3
+  e -- "Mentor no-show -> rebook same mentor" --> r0["No refund - session reinstated"]
+  e -- "Customer no-show -> mentor closes" --> r0n["No refund - mentor paid in full"]
+
+  r1 -.-> note1
+  r2 -.-> note1
+  r3 -.-> note1["All amounts are recorded in booking_ledger.<br/>Payments are mock - nothing is actually moved."]
+
+  pp([Mentor payout penalty when...]) --> p{Path}
+  p -- "Mentor cancels late (2-24h)" --> p25["Penalty 25% of payout"]
+  p -- "Mentor late reschedule accepted" --> p25
+  p -- "Customer rejects past-deadline mentor reschedule" --> p25
+  p -- "Mentor no-show strike 3+ (90-day window)" --> p25
+  p -- "Mentor initiates 3rd reschedule (auto-cancel)" --> p100["Penalty 100% of payout"]
+  p -- "Mentor no-show strike 1-2" --> p0w["Warning only - 0% (strike 2 = ops check-in)"]

@@ -1,0 +1,19 @@
+flowchart TD
+  A(["cancel_booking(id, by)"]) --> G{"Already cancelled /<br/>completed / no_show?"}
+  G -- yes --> Gx[/"Error: already finalised"/]
+  G -- no --> B{"Under 2h before start (buffer)?"}
+  B -- yes --> Bx[/"Error: blocked — contact the other party"/]
+  B -- no --> W{"Who cancels?"}
+
+  W -- Mentor --> M["Booking to cancelled (trigger sends email + .ics)<br/>Customer refund 100%"]
+  M --> ML{"Late (2-24h)?"}
+  ML -- "yes" --> MLy["+ Mentor penalty 25%<br/>+ bump monthly cancellation count"]
+  ML -- "no (free, 24h+)" --> MEnd([Done])
+  MLy --> MEnd
+
+  W -- Customer --> CF{"24h+ before (free)?"}
+  CF -- yes --> CFy["Booking to cancelled (trigger email)<br/>Customer refund 100%"] --> CEnd([Done])
+  CF -- "no (late, 2-24h)" --> CL["Booking STAYS confirmed<br/>Insert cancel request (respond_by = window)<br/>Email: cancel_requested to mentor"]
+  CL --> R{{"Mentor responds: respond_booking_request<br/>(or cron auto-approves at expiry)"}}
+  R -- "Accept / no reply by window" --> Ra["Booking to cancelled (trigger email)<br/>Customer refund 100%"] --> CEnd
+  R -- "Reject" --> Rr["Booking to cancelled (trigger email)<br/>Customer charged 50% + refunded 50%"] --> CEnd

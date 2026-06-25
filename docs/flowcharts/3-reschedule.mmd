@@ -1,0 +1,42 @@
+flowchart TD
+  S([Reschedule initiated]) --> WHO{"Initiated by?"}
+
+  WHO -- Customer --> c0{"3rd attempt?<br/>(reschedule_count >= 2)"}
+  c0 -- yes --> FAC["force_autocancel(customer)"]
+  c0 -- no --> cb{"Under 2h (buffer)?"}
+  cb -- yes --> cbx[/"Error: blocked"/]
+  cb -- no --> cf{"24h+ before (free)?"}
+  cf -- yes --> cAvail{"is_slot_available?"}
+  cAvail -- no --> cax[/"Error: pick another slot"/]
+  cAvail -- yes --> cMove["Booking to rescheduled (trigger email + .ics)<br/>count + 1, reminders cleared"]
+  cf -- "no (late)" --> creq["request_reschedule:<br/>insert reschedule request (respond_by = window)<br/>Email: reschedule_requested to mentor"]
+  creq --> mresp{{"Mentor responds<br/>(or cron auto-approves)"}}
+  mresp -- "Accept / no reply" --> capp["Email: reschedule_approved to customer"]
+  capp --> cpick["Customer picks new slot<br/>(customer_reschedule, now permitted)"]
+  cpick --> cAvail
+  mresp -- "Reject" --> crej["Email: reschedule_rejected<br/>Customer keeps original OR cancels via cancel flow"]
+
+  WHO -- Mentor --> m0{"3rd attempt?<br/>(reschedule_count >= 2)"}
+  m0 -- yes --> FAC2["force_autocancel(mentor)"]
+  m0 -- no --> mprop["mentor_propose_reschedule:<br/>insert offer (date + time range,<br/>respond_by = window, was_late = late?)<br/>Email: proposed to customer"]
+  mprop --> mopt{"Customer choice"}
+
+  mopt -- "Accept a slot in range" --> macc{"In range + future +<br/>is_slot_available?"}
+  macc -- no --> maccx[/"Error: pick another slot in the range"/]
+  macc -- yes --> mmove["Booking to rescheduled (trigger email + .ics)<br/>count + 1"]
+  mmove --> mlate{"Offer was late?"}
+  mlate -- "yes (past-deadline)" --> mlatey["+ Mentor penalty 25%"] --> mdone([Done])
+  mlate -- "no" --> mdone
+
+  mopt -- "Ask for a different date" --> mother["mentee_request_other_date:<br/>insert counter-offer<br/>Email: counter to mentor"]
+  mother --> mprop
+
+  mopt -- "Reject proposal" --> mrej["mentee_reject_reschedule:<br/>Booking to cancelled (trigger email)"]
+  mrej --> mrejl{"Offer was late?"}
+  mrejl -- "yes (past-deadline)" --> mrejy["Customer refund 100%<br/>+ Mentor penalty 25%"]
+  mrejl -- "no (within deadline)" --> mrejn["Customer credit 100% (no cash)"]
+
+  mopt -- "No response by window" --> mexp["Cron: offer expired<br/>Booking unchanged at original time (no email)"]
+
+  FAC --> FACout
+  FAC2 --> FACout["Booking to cancelled (trigger email)<br/>Customer refund 100%<br/>+ 100% penalty on the initiator"]

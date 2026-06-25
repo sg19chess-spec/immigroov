@@ -1,0 +1,10 @@
+flowchart TD
+  A(["Customer picks mentor + service + slot,<br/>enters name + email"]) --> B{"Valid email?"}
+  B -- no --> Bx[/"Error: a valid email is required"/]
+  B -- yes --> C{"is_slot_available?"}
+  C -- no --> Cx[/"Error: that time is not available"/]
+  C -- yes --> D["Find or create user by email"]
+  D --> E["Read active service price<br/>Insert booking (status = confirmed)"]
+  E --> F["Triggers fire automatically:<br/>set slot_end (= slot + duration)<br/>set meeting_url (Jitsi, if video service)<br/>lock specific_availability slot<br/>status email"]
+  F --> G["Insert customer_payments (mock 'paid')<br/>Insert mentor_payouts (price x ppp, 'pending')<br/>Save intake question answers"]
+  G --> H(["CONFIRMED<br/>Confirmation email + .ics to mentee / mentor / admin"])
