@@ -313,6 +313,11 @@ Two send paths exist:
 **Booking creation — `app/mentor/[id]/page.tsx`:** `get_available_slots`,
 `demo_list_questions`, `book_session_guest`.
 
+**Admin — `components/AdminManager.tsx`** (dashboard `Admin` tab, `?tab=admin`):
+`admin_bookings` (cross-mentor activity feed) and `admin_ledger` (every refund / credit /
+charge / penalty with booking context). Read-only; shows status/ledger totals, an activity
+table, and the full ledger.
+
 The read RPCs `bookings_by_email` / `mentor_sessions` join in the latest open
 `reschedule_offer`, the latest `booking_request`, `reschedule_count`, `no_show_by`, and a
 `ledger_summary` so the UI can render the current negotiation/penalty state.
@@ -323,8 +328,9 @@ The read RPCs `bookings_by_email` / `mentor_sessions` join in the latest open
 
 - **Auth.** The lifecycle RPCs are `SECURITY DEFINER` and are granted to `anon`/`authenticated`;
   they trust the caller and do **not** verify that the caller owns the booking or is the
-  mentor. The `demo_*` and `kb_admin_*` RPCs likewise bypass auth. These must be gated
-  before production.
+  mentor. The `demo_*`, `kb_admin_*`, and `admin_*` (`admin_bookings` / `admin_ledger`) RPCs
+  likewise bypass auth — `admin_*` expose **all** bookings/ledger to any caller and must be
+  gated to an admin role before production.
 - **No real payments** — ledger only (§1, §9).
 - **Not implemented** (deferred): packages, a credit *wallet* (credits are recorded in the
   ledger but not spendable), before/after-first-session refund nuance, and automatic
