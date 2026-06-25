@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Immigroov — Booking System Workflow (as-built)</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body { font-family: Arial, sans-serif; background: #F7F6F2; color: #1A1A1A; padding: 40px 24px 80px; }
+  .page { max-width: 1000px; margin: 0 auto; }
+
+  .header { margin-bottom: 40px; padding-bottom: 20px; border-bottom: 3px solid #1B3B8A; }
+  .header h1 { font-size: 28px; font-weight: 700; color: #1B3B8A; }
+  .header p { font-size: 14px; color: #777; margin-top: 4px; }
+  .badge { display: inline-block; background: #EAF3DE; border: 1px solid #3B6D11; color: #27500A; font-size: 11px; font-weight: 700; padding: 2px 10px; border-radius: 20px; margin-top: 8px; letter-spacing: .04em; }
+  .badge.warn { background:#FFF3D6; border-color:#F5A623; color:#8B5A00; margin-left:6px; }
+
+  .intro { background:#fff; border:1px solid #E0DED8; border-radius:10px; padding:16px 18px; font-size:13px; color:#444; line-height:1.6; margin-bottom:32px; }
+  .intro b { color:#1B3B8A; }
+  .intro code { background:#F1EFE8; border-radius:4px; padding:1px 5px; font-family:Menlo,Consolas,monospace; font-size:12px; color:#3C3489; }
+
+  .section { margin-bottom: 52px; }
+  .section-title { font-size: 13px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: #1B3B8A; background: #EDF2FF; border-left: 4px solid #1B3B8A; padding: 8px 14px; margin-bottom: 24px; border-radius: 0 6px 6px 0; }
+
+  .flow { display: flex; flex-direction: column; align-items: center; }
+
+  .node { border-radius: 8px; padding: 10px 18px; font-size: 13px; font-weight: 600; text-align: center; line-height: 1.4; position: relative; }
+  .node sub { display: block; font-size: 11px; font-weight: 400; margin-top: 3px; opacity: .82; }
+  .node code { font-family:Menlo,Consolas,monospace; font-size:10.5px; font-weight:600; opacity:.95; }
+  .node-start  { background: #E6F1FB; border: 1.5px solid #185FA5; color: #0C447C; min-width: 240px; }
+  .node-system { background: #F1EFE8; border: 1.5px solid #888780; color: #444441; min-width: 240px; }
+  .node-done   { background: #EAF3DE; border: 1.5px solid #3B6D11; color: #27500A; min-width: 240px; }
+  .node-decide { background: #FAEEDA; border: 1.5px solid #854F0B; color: #633806; min-width: 200px; border-radius: 6px; }
+  .node-action { background: #EEEDFE; border: 1.5px solid #534AB7; color: #3C3489; min-width: 180px; }
+  .node-warn   { background: #FAECE7; border: 1.5px solid #993C1D; color: #712B13; min-width: 180px; }
+  .node-teal   { background: #E1F5EE; border: 1.5px solid #0F6E56; color: #085041; min-width: 200px; }
+  .node-gray   { background: #fff; border: 1.5px solid #AAAAAA; color: #333; min-width: 160px; }
+
+  .arr { color: #AAAAAA; font-size: 18px; line-height: 1; padding: 3px 0; text-align: center; }
+  .lbl { font-size: 11px; color: #888; text-align: center; padding: 1px 0; }
+
+  .split { display: flex; width: 100%; justify-content: center; }
+  .branch { display: flex; flex-direction: column; align-items: center; flex: 1; max-width: 280px; padding: 0 10px; }
+  .branch-divider { width: 1px; background: #DDD; margin: 0 4px; align-self: stretch; }
+  .split3 { display: flex; width: 100%; justify-content: center; }
+  .branch3 { display: flex; flex-direction: column; align-items: center; flex: 1; max-width: 220px; padding: 0 8px; }
+
+  .col-head { font-size: 12px; font-weight: 700; color: #1B3B8A; text-align: center; padding: 6px 12px 10px; border-bottom: 1.5px solid #1B3B8A; width: 100%; margin-bottom: 12px; }
+
+  .panels { display: flex; gap: 20px; width: 100%; }
+  .panel { flex: 1; background: #fff; border: 1px solid #E0DED8; border-radius: 10px; padding: 20px 16px; }
+
+  .rules-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 4px; }
+  .rules-table th { background: #1B3B8A; color: #fff; padding: 9px 12px; text-align: left; font-size: 12px; }
+  .rules-table td { padding: 8px 12px; border-bottom: 1px solid #EBEBEB; vertical-align: top; }
+  .rules-table tr:nth-child(even) td { background: #F7F6F2; }
+  .rules-table td:first-child { font-weight: 600; color: #1B3B8A; }
+  .pill { display:inline-block; font-size:11px; font-weight:700; padding:1px 8px; border-radius:20px; }
+  .pill-refund { background:#EAF3DE; color:#27500A; }
+  .pill-credit { background:#EEEDFE; color:#3C3489; }
+  .pill-charge { background:#FAECE7; color:#712B13; }
+  .pill-none   { background:#F1EFE8; color:#555; }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 28px; }
+  .legend-item { display: flex; align-items: center; gap: 7px; font-size: 12px; color: #444; }
+  .legend-dot { width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0; }
+
+  .note { background: #FFFBF0; border-left: 3px solid #F5A623; padding: 9px 14px; font-size: 12px; color: #6B4C00; border-radius: 0 6px 6px 0; margin: 10px 0; }
+  .note.code-note { background:#F4F6FB; border-left-color:#534AB7; color:#3C3489; }
+  hr { border: none; border-top: 1px dashed #CCC; margin: 40px 0; }
+  .footer { text-align: center; font-size: 12px; color: #AAA; margin-top: 60px; padding-top: 16px; border-top: 1px solid #DDD; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="header">
+    <h1>Immigroov — Booking System Workflow</h1>
+    <p>How the booking system actually works today — every node maps to a live database function, trigger or cron job.</p>
+    <span class="badge">AS-BUILT · verified 25 Jun 2026</span>
+    <span class="badge warn">Money is mock — recorded in booking_ledger</span>
+  </div>
+
+  <div class="intro">
+    A booking is created and <b>confirmed immediately</b> when a customer pays for a single session (there is no
+    separate mentor "accept" step, and no packages yet). From <code>confirmed</code> it can move through three paths —
+    <b>cancel</b>, <b>reschedule</b>, or <b>no-show</b>. Each branch is gated by the deadline state of the session:
+    <code>booking_deadline_state(slot)</code> returns <b>free</b> (≥24h before), <b>late</b> (2–24h before, needs
+    approval or incurs a penalty), or <b>buffer</b> (under 2h before — self-service is blocked). The approval window is
+    <code>response_window = MIN(now+48h, slot−2h)</code>. All payments are mock, so every refund / credit / penalty is
+    written as a row in <code>booking_ledger</code> rather than actually charged.
+  </div>
+
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:#E6F1FB;border:1.5px solid #185FA5"></div>Customer action</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#E1F5EE;border:1.5px solid #0F6E56"></div>Mentor action</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#F1EFE8;border:1.5px solid #888780"></div>System / auto / cron</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#FAEEDA;border:1.5px solid #854F0B"></div>Decision</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#EEEDFE;border:1.5px solid #534AB7"></div>Request / proposal / credit</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#FAECE7;border:1.5px solid #993C1D"></div>Penalty / blocked</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#EAF3DE;border:1.5px solid #3B6D11"></div>Confirmed / refund / done</div>
+  </div>
+
+  <!-- ───────────────────────── DIAGRAM 1 ───────────────────────── -->
+  <div class="section">
+    <div class="section-title">Diagram 1 — Booking confirmation</div>
+    <div class="flow">
+      <div class="node node-start">Customer picks mentor + service + slot,<br>enters name + email<sub><code>book_session_guest()</code></sub></div>
+      <div class="arr">↓</div>
+      <div class="node node-decide">Valid email &amp; <code>is_slot_available()</code>?</div>
+      <div class="split" style="margin-top:8px">
+        <div class="branch">
+          <div class="lbl">No</div><div class="arr">↓</div>
+          <div class="node node-warn">Error — booking refused</div>
+        </div>
+        <div class="branch-divider"></div>
+        <div class="branch">
+          <div class="lbl">Yes</div><div class="arr">↓</div>
+          <div class="node node-system" style="max-width:340px">Insert booking <code>status = confirmed</code><br>Triggers: set slot_end · meeting_url (Jitsi if video) ·<br>lock slot · send confirmed email + .ics<br>Mock <code>customer_payments (paid)</code> + <code>mentor_payouts (pending)</code></div>
+          <div class="arr">↓</div>
+          <div class="node node-done" style="font-size:15px;padding:12px 24px">Booking confirmed</div>
+        </div>
+      </div>
+      <div class="arr">↓</div>
+      <div class="split3" style="margin-top:8px">
+        <div class="branch3"><div class="node node-warn" style="width:100%">Cancel<sub>→ Diagram 2</sub></div></div>
+        <div class="branch3"><div class="node node-action" style="width:100%">Reschedule<sub>→ Diagram 3</sub></div></div>
+        <div class="branch3"><div class="node node-decide" style="width:100%">No-show<sub>→ Diagram 4</sub></div></div>
+      </div>
+      <div class="note" style="margin-top:18px">Background cron keeps it moving: reminders at ~24h and ~1h, a mentor "are you available?" nudge at T−60 min (<code>send_attendance_checks</code>), and auto-completion once <code>slot_end</code> passes (<code>mark_past_bookings_completed</code>).</div>
+    </div>
+  </div>
+
+  <hr>
+
+  <!-- ───────────────────────── DIAGRAM 2 ───────────────────────── -->
+  <div class="section">
+    <div class="section-title">Diagram 2 — Cancel flow <code style="font-weight:400;text-transform:none;letter-spacing:0">cancel_booking(id, by)</code></div>
+    <div class="note">Under 2h before start (<b>buffer</b>) → cancellation is <b>blocked</b> for both parties ("contact the other party"). The <code>cancelled</code> email is sent once, by the status trigger.</div>
+    <div style="height:14px"></div>
+    <div class="panels">
+
+      <div class="panel">
+        <div class="col-head">Customer cancels</div>
+        <div class="flow">
+          <div class="node node-decide" style="width:100%">≥24h before session? (free)</div>
+          <div class="split" style="margin-top:8px">
+            <div class="branch">
+              <div class="lbl">Yes — free</div><div class="arr">↓</div>
+              <div class="node node-done" style="width:100%">Cancelled<sub>Customer refund 100%</sub></div>
+            </div>
+            <div class="branch-divider"></div>
+            <div class="branch">
+              <div class="lbl">No — late (2–24h)</div><div class="arr">↓</div>
+              <div class="node node-action" style="width:100%">Booking stays confirmed<br>Cancel request to mentor<sub><code>cancel_requested</code> · respond_by = window</sub></div>
+              <div class="arr">↓</div>
+              <div class="node node-decide" style="width:100%">Mentor responds?<sub>no reply = cron auto-approve</sub></div>
+              <div class="split" style="margin-top:8px">
+                <div class="branch">
+                  <div class="lbl">Accept / no reply</div><div class="arr">↓</div>
+                  <div class="node node-done" style="width:100%;font-size:12px">Cancelled<sub>refund 100%</sub></div>
+                </div>
+                <div class="branch-divider"></div>
+                <div class="branch">
+                  <div class="lbl">Reject</div><div class="arr">↓</div>
+                  <div class="node node-gray" style="width:100%;font-size:12px">Cancelled<sub>charge 50% + refund 50%</sub></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="col-head">Mentor cancels</div>
+        <div class="flow">
+          <div class="node node-decide" style="width:100%">≥24h before session? (free)</div>
+          <div class="split" style="margin-top:8px">
+            <div class="branch">
+              <div class="lbl">Yes — free</div><div class="arr">↓</div>
+              <div class="node node-done" style="width:100%">Cancelled<sub>Customer refund 100% · no penalty</sub></div>
+            </div>
+            <div class="branch-divider"></div>
+            <div class="branch">
+              <div class="lbl">No — late (2–24h)</div><div class="arr">↓</div>
+              <div class="node node-warn" style="width:100%">Cancelled<sub>Customer refund 100%<br>+ mentor penalty 25%<br>+ cancellation count bumped</sub></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <hr>
+
+  <!-- ───────────────────────── DIAGRAM 3 ───────────────────────── -->
+  <div class="section">
+    <div class="section-title">Diagram 3 — Reschedule flow</div>
+    <div class="note">Max 2 reschedules per booking. A 3rd attempt by either party → <code>force_autocancel</code>: booking cancelled, customer refund 100%, <b>100% penalty on whoever initiated</b>. Under 2h (buffer) is blocked.</div>
+    <div style="height:14px"></div>
+    <div class="panels">
+
+      <div class="panel">
+        <div class="col-head">Customer reschedules</div>
+        <div class="flow">
+          <div class="node node-decide" style="width:100%">≥24h before session? (free)</div>
+          <div class="split" style="margin-top:8px">
+            <div class="branch">
+              <div class="lbl">Yes — free</div><div class="arr">↓</div>
+              <div class="node node-start" style="width:100%;font-size:12px">Pick new slot<sub><code>customer_reschedule()</code><br>checks is_slot_available</sub></div>
+              <div class="arr">↓</div>
+              <div class="node node-done" style="width:100%;font-size:12px">Rescheduled<sub>email + .ics · count +1</sub></div>
+            </div>
+            <div class="branch-divider"></div>
+            <div class="branch">
+              <div class="lbl">No — late</div><div class="arr">↓</div>
+              <div class="node node-action" style="width:100%;font-size:12px">Request to mentor<sub><code>request_reschedule()</code><br><code>reschedule_requested</code></sub></div>
+              <div class="arr">↓</div>
+              <div class="node node-decide" style="width:100%;font-size:12px">Mentor responds?<sub>no reply = auto-approve</sub></div>
+              <div class="split" style="margin-top:8px">
+                <div class="branch">
+                  <div class="lbl">Accept / none</div><div class="arr">↓</div>
+                  <div class="node node-done" style="width:100%;font-size:11px">Approved → customer<br>picks slot → Rescheduled</div>
+                </div>
+                <div class="branch-divider"></div>
+                <div class="branch">
+                  <div class="lbl">Reject</div><div class="arr">↓</div>
+                  <div class="node node-gray" style="width:100%;font-size:11px">Keep original<br>or cancel (→ Diagram 2)</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="col-head">Mentor reschedules</div>
+        <div class="flow">
+          <div class="node node-teal" style="width:100%">Mentor proposes a date + time range<sub><code>mentor_propose_reschedule()</code> · flags was_late<br><code>proposed</code> email to customer</sub></div>
+          <div class="arr">↓</div>
+          <div class="node node-decide" style="width:100%">Customer choice</div>
+          <div class="split3" style="margin-top:8px">
+            <div class="branch3">
+              <div class="lbl">Accept a slot</div><div class="arr">↓</div>
+              <div class="node node-done" style="width:100%;font-size:11px">Rescheduled<sub><code>mentee_accept_reschedule</code><br>in-range + future + available<br>if was_late: +25% mentor penalty</sub></div>
+            </div>
+            <div class="branch3">
+              <div class="lbl">Ask another date</div><div class="arr">↓</div>
+              <div class="node node-action" style="width:100%;font-size:11px">Counter-offer<sub><code>mentee_request_other_date</code><br><code>counter</code> → mentor re-proposes</sub></div>
+            </div>
+            <div class="branch3">
+              <div class="lbl">Reject</div><div class="arr">↓</div>
+              <div class="node node-warn" style="width:100%;font-size:11px">Cancelled<sub><code>mentee_reject_reschedule</code><br>late: refund 100% + 25% penalty<br>within: credit 100% (no cash)</sub></div>
+            </div>
+          </div>
+          <div class="note" style="margin-top:12px;width:100%">No customer response by the window → the offer is set to <code>expired</code> (cron). The booking is unchanged at its original time and <b>no email</b> is sent.</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <hr>
+
+  <!-- ───────────────────────── DIAGRAM 4 ───────────────────────── -->
+  <div class="section">
+    <div class="section-title">Diagram 4 — No-show handling</div>
+    <div class="note">Report-based — there is <b>no automatic detection</b> (no video-join presence signal). The party who showed up reports the other via <code>flag_no_show(id, party)</code>, allowed only <b>after T+10 min</b>. Status → <code>no_show</code>, both parties emailed.</div>
+    <div style="height:14px"></div>
+    <div class="flow">
+      <div class="node node-system" style="min-width:340px">A party reports a no-show after T+10<sub><code>flag_no_show()</code> → status no_show · <code>no_show</code> email</sub></div>
+      <div class="arr">↓</div>
+      <div class="node node-decide">Who no-showed?</div>
+    </div>
+
+    <div style="height:18px"></div>
+    <div class="panels">
+
+      <div class="panel">
+        <div class="col-head">Mentor no-showed — customer gets 3 choices<br><code style="font-weight:400">resolve_mentor_no_show()</code></div>
+        <div class="split3">
+          <div class="branch3">
+            <div class="node node-start" style="width:100%;font-size:12px">Rebook same mentor</div>
+            <div class="arr">↓</div>
+            <div class="node node-done" style="width:100%;font-size:11px">Reinstated → confirmed<sub>penalty waived</sub></div>
+          </div>
+          <div class="branch3">
+            <div class="node node-start" style="width:100%;font-size:12px">Rebook different mentor</div>
+            <div class="arr">↓</div>
+            <div class="node node-action" style="width:100%;font-size:11px">Customer credit 100%<sub>+ mentor strike</sub></div>
+          </div>
+          <div class="branch3">
+            <div class="node node-start" style="width:100%;font-size:12px">Request full refund</div>
+            <div class="arr">↓</div>
+            <div class="node node-done" style="width:100%;font-size:11px">Customer refund 100%<sub>+ mentor strike</sub></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="col-head">Customer no-showed — mentor gets 2 choices<br><code style="font-weight:400">resolve_customer_no_show()</code></div>
+        <div class="split">
+          <div class="branch">
+            <div class="node node-teal" style="width:100%">Accept rebook</div>
+            <div class="arr">↓</div>
+            <div class="node node-done" style="width:100%">Reinstated → confirmed</div>
+          </div>
+          <div class="branch-divider"></div>
+          <div class="branch">
+            <div class="node node-teal" style="width:100%">Reject (close)</div>
+            <div class="arr">↓</div>
+            <div class="node node-done" style="width:100%">Completed<sub>Mentor credit 100% (paid in full)</sub></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div style="height:22px"></div>
+    <div class="panel" style="padding:20px">
+      <div class="col-head" style="text-align:left;padding-bottom:8px;margin-bottom:14px">Mentor no-show strike ladder &nbsp;<code style="font-weight:400">apply_mentor_strike()</code></div>
+      <table class="rules-table">
+        <tr><th style="width:140px">Strike</th><th>Consequence (mentor payout)</th></tr>
+        <tr><td>Strike 1</td><td>Warning only — ledger penalty 0%.</td></tr>
+        <tr><td>Strike 2</td><td>Warning + Immigroov ops check-in note. Penalty 0%.</td></tr>
+        <tr><td>Strike 3+</td><td><span class="pill pill-charge">penalty 25%</span> of the mentor payout, per no-show.</td></tr>
+        <tr><td>Reset</td><td>If the last no-show was over 90 days ago, the counter resets to 0 before the new strike is applied.</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <hr>
+
+  <!-- ───────────────────────── REFUND MATRIX ───────────────────────── -->
+  <div class="section">
+    <div class="section-title">Refund / credit / penalty — every terminal outcome</div>
+    <table class="rules-table">
+      <tr><th style="width:46%">Path</th><th>Customer ledger</th><th>Mentor ledger</th><th>Status</th></tr>
+      <tr><td>Customer cancel ≥24h (free)</td><td><span class="pill pill-refund">refund 100%</span></td><td>—</td><td>cancelled</td></tr>
+      <tr><td>Customer late cancel — approved / auto (no reply)</td><td><span class="pill pill-refund">refund 100%</span></td><td>—</td><td>cancelled</td></tr>
+      <tr><td>Customer late cancel — rejected</td><td><span class="pill pill-charge">charge 50%</span> + <span class="pill pill-refund">refund 50%</span></td><td>—</td><td>cancelled</td></tr>
+      <tr><td>Mentor cancel ≥24h (free)</td><td><span class="pill pill-refund">refund 100%</span></td><td>—</td><td>cancelled</td></tr>
+      <tr><td>Mentor cancel late (2–24h)</td><td><span class="pill pill-refund">refund 100%</span></td><td><span class="pill pill-charge">penalty 25%</span></td><td>cancelled</td></tr>
+      <tr><td>Mentor reschedule accepted — within deadline</td><td>—</td><td>—</td><td>rescheduled</td></tr>
+      <tr><td>Mentor reschedule accepted — past deadline</td><td>—</td><td><span class="pill pill-charge">penalty 25%</span></td><td>rescheduled</td></tr>
+      <tr><td>Mentor reschedule rejected — within deadline</td><td><span class="pill pill-credit">credit 100%</span></td><td>—</td><td>cancelled</td></tr>
+      <tr><td>Mentor reschedule rejected — past deadline</td><td><span class="pill pill-refund">refund 100%</span></td><td><span class="pill pill-charge">penalty 25%</span></td><td>cancelled</td></tr>
+      <tr><td>3rd reschedule attempt — customer initiated</td><td><span class="pill pill-refund">refund 100%</span> + <span class="pill pill-charge">penalty 100%</span></td><td>—</td><td>cancelled</td></tr>
+      <tr><td>3rd reschedule attempt — mentor initiated</td><td><span class="pill pill-refund">refund 100%</span></td><td><span class="pill pill-charge">penalty 100%</span></td><td>cancelled</td></tr>
+      <tr><td>Mentor no-show → rebook same</td><td>—</td><td>—</td><td>confirmed</td></tr>
+      <tr><td>Mentor no-show → rebook different</td><td><span class="pill pill-credit">credit 100%</span></td><td>strike (3+ → <span class="pill pill-charge">25%</span>)</td><td>no_show</td></tr>
+      <tr><td>Mentor no-show → refund</td><td><span class="pill pill-refund">refund 100%</span></td><td>strike (3+ → <span class="pill pill-charge">25%</span>)</td><td>no_show</td></tr>
+      <tr><td>Customer no-show → accept rebook</td><td>—</td><td>—</td><td>confirmed</td></tr>
+      <tr><td>Customer no-show → reject (close)</td><td>—</td><td><span class="pill pill-credit">credit 100% (paid in full)</span></td><td>completed</td></tr>
+    </table>
+  </div>
+
+  <hr>
+
+  <!-- ───────────────────────── BACKGROUND JOBS ───────────────────────── -->
+  <div class="section">
+    <div class="section-title">Background jobs (pg_cron)</div>
+    <table class="rules-table">
+      <tr><th style="width:170px">Job</th><th style="width:110px">Every</th><th>What it does</th></tr>
+      <tr><td>resolve-requests</td><td>10 min</td><td>Pending cancel/reschedule requests past <code>respond_by</code> are <b>auto-approved</b>; stale mentor reschedule offers are marked <code>expired</code>. (<code>resolve_expired_requests</code>)</td></tr>
+      <tr><td>attend-checks</td><td>10 min</td><td>Emails the mentor "are you available?" ~60 min before an unconfirmed session. (<code>send_attendance_checks</code>)</td></tr>
+      <tr><td>auto-complete</td><td>15 min</td><td>Confirmed/rescheduled sessions whose <code>slot_end</code> has passed → <code>completed</code>. (<code>mark_past_bookings_completed</code>)</td></tr>
+      <tr><td>reminders-24h</td><td>15 min</td><td>~24h-before reminder email to the customer.</td></tr>
+      <tr><td>reminders-1h</td><td>5 min</td><td>~1h-before reminder email to the customer.</td></tr>
+    </table>
+    <div class="note code-note" style="margin-top:14px">An unconfirmed session is <b>not</b> auto-cancelled — the attend-check is only a nudge; it simply auto-completes after the end time unless a no-show is reported first.</div>
+  </div>
+
+  <hr>
+
+  <!-- ───────────────────────── RULES ───────────────────────── -->
+  <div class="section">
+    <div class="section-title">Platform rules — quick reference (as-built)</div>
+    <table class="rules-table">
+      <tr><th style="width:240px">Rule</th><th>Value in the live system</th></tr>
+      <tr><td>Deadline direction</td><td><b>≥24h before = free</b> · 2–24h = late (approval / penalty) · under 2h = buffer (blocked). <code>booking_deadline_state()</code></td></tr>
+      <tr><td>Response / approval window</td><td><code>MIN(now + 48h, slot − 2h)</code> — never extends past T−2h.</td></tr>
+      <tr><td>2-hour buffer</td><td>Cancel &amp; reschedule are <b>blocked</b> under 2h. (No automatic conversion to no-show.)</td></tr>
+      <tr><td>Reschedule cap</td><td>Max 2. 3rd attempt → auto-cancel + refund 100% + 100% penalty on the initiator.</td></tr>
+      <tr><td>No mentor response to a request</td><td>Auto-approved when the window expires (cron).</td></tr>
+      <tr><td>No customer response to a proposal</td><td>Offer expires; original booking unchanged (silent — no email).</td></tr>
+      <tr><td>Customer late cancel rejected</td><td>50% kept (charge 50% + refund 50%).</td></tr>
+      <tr><td>Mentor late cancel</td><td>25% mentor payout penalty.</td></tr>
+      <tr><td>Mentor late reschedule accepted</td><td>25% mentor payout penalty.</td></tr>
+      <tr><td>Mentor reschedule rejected (within deadline)</td><td>Customer credit only, no cash.</td></tr>
+      <tr><td>Mentor no-show strike 3+</td><td>25% mentor payout penalty per no-show (90-day reset).</td></tr>
+    </table>
+    <div class="note" style="margin-top:16px"><b>Not built yet (deferred):</b> packages &amp; a spendable credit wallet · the "full cash before first session / credit after" package-refund rule · automatic no-show detection · automatic buffer→no-show conversion. These appear in the original spec but are intentionally out of the current system.</div>
+  </div>
+
+  <div class="footer">Immigroov · As-built booking workflow · generated from the live database 25 Jun 2026</div>
+
+</div>
+</body>
+</html>
