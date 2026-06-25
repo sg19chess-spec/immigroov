@@ -80,8 +80,14 @@ booking_deadline_state(slot) =
 response_window(slot) = least(now() + 48 hours, slot - 2 hours)
 ```
 So: **≥24h before the session = `free`; 2–24h = `late` (needs approval / incurs penalty);
-<2h = `buffer` (self-service blocked).** The approval deadline for a request is
-`MIN(now+48h, slot−2h)`.
+<2h = `buffer`.** The approval deadline for a request is `MIN(now+48h, slot−2h)`.
+
+> The `buffer` state is enforced as a hard block **only** in `cancel_booking`,
+> `customer_reschedule`, and `request_reschedule`. `mentor_propose_reschedule`,
+> `mentee_accept_reschedule`, and `mentee_request_other_date` do **not** check it (though an
+> offer created under 2h has its `respond_by` in the past and is expired by the cron almost
+> immediately). The state itself is just a label; "blocked" is whatever each function does
+> with it.
 
 ---
 
@@ -103,6 +109,11 @@ The mentor profile page (`app/mentor/[id]/page.tsx`) calls **`book_session_guest
 > Other creation functions exist in the DB (`book_session`, `book_and_pay_mock`,
 > `demo_book_and_pay`, `create_guest_booking`) but the production booking UI uses
 > `book_session_guest`.
+>
+> **UI preconditions (client-side, not enforced in the RPC):** the Book button requires the
+> customer to have opened the Groovia AI chat at least once (`isEngaged()`) and checks the
+> email contains `@` before calling the RPC. These are front-end gates only — the RPC itself
+> can be called without them.
 
 ---
 
@@ -159,7 +170,8 @@ on whoever initiated** the 3rd attempt).
 
 ### Customer-initiated
 - **`customer_reschedule(booking_id, slot_time)`** — direct move. Guards: not terminal;
-  `count<2`; not `buffer`. If state is **not `free`**, a prior **approved/auto_approved**
+  if `reschedule_count >= 2` it **auto-cancels instead** (see intro); raises on `buffer`.
+  If state is **not `free`**, a prior **approved/auto_approved**
   reschedule request must exist, otherwise it raises ("late reschedule needs mentor approval").
   Requires `is_slot_available`. On success: `slot_time` updated, `slot_end` recomputed,
   status → `rescheduled`, `reschedule_count+1`, reminders cleared, the approval request

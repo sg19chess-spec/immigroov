@@ -6,8 +6,10 @@
 > aspirational. Each diagram lists the functions it covers underneath it.
 >
 > Deadline states come from `booking_deadline_state(slot)`:
-> **≥24h before = free · 2–24h before = late · under 2h = buffer (blocked)**.
-> The response/approval window is `response_window(slot) = MIN(now+48h, slot−2h)`.
+> **≥24h before = free · 2–24h before = late · under 2h = buffer**. The buffer is a hard
+> block only in `cancel_booking` (both parties) and customer-initiated reschedule
+> (`customer_reschedule` / `request_reschedule`); mentor propose / mentee accept are not
+> buffer-gated. The response/approval window is `response_window(slot) = MIN(now+48h, slot−2h)`.
 >
 > **Rendered SVGs** live in [`flowcharts/`](flowcharts/) (regenerate from the `.mmd`
 > sources with `mmdc -i <name>.mmd -o <name>.svg -c flowcharts/theme.json`). Each section
@@ -161,7 +163,7 @@ flowchart TD
   e -- "Mentor no-show → request refund" --> r1
   e -- "Mentor no-show → rebook a different mentor" --> r3
   e -- "Mentor no-show → rebook same mentor" --> r0["No refund — session reinstated"]
-  e -- "Customer no-show → mentor closes" --> r0
+  e -- "Customer no-show → mentor closes" --> r0c["No refund — session completed (mentor paid in full)"]
 ```
 
 ### What the mentor is charged (payout penalties)
