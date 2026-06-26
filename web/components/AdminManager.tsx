@@ -222,14 +222,17 @@ export default function AdminManager() {
                   <div><span className="faint">Service</span><br />{detail.booking.service} · {detail.booking.duration} min</div>
                   <div><span className="faint">Session</span><br />{fmtZ(detail.booking.slot_time, detail.booking.mentee_tz)} <span className="faint">({detail.booking.mentee_tz})</span></div>
                   <div><span className="faint">Mentor</span><br />{detail.booking.mentor} <span className="faint">({detail.booking.mentor_tz})</span></div>
-                  <div><span className="faint">Mentee</span><br />{detail.booking.mentee}</div>
+                  <div><span className="faint">Mentee</span><br />{detail.booking.mentee} <span className="faint">({detail.booking.mentee_tz})</span></div>
+                  <div><span className="faint">Mentor country</span><br />{detail.booking.mentor_country || "—"}</div>
+                  <div><span className="faint">Mentee country</span><br />{detail.booking.mentee_country || "—"}</div>
                   <div><span className="faint">Booked</span><br />{fmtZ(detail.booking.created_at, detail.booking.mentee_tz)} <span className="faint">({detail.booking.mentee_tz})</span></div>
                   <div><span className="faint">Reschedules</span><br />{detail.booking.reschedule_count} of 2</div>
                 </div>
 
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 18 }}>
-                  <Money label="Paid" v={detail.payment?.amount} c={detail.payment?.currency} tone="#0c1b33" />
-                  <Money label="Mentor payout" v={detail.payout?.amount} c={detail.payout?.currency} tone="#0c1b33" />
+                  <Money label="Paid (gross)" v={detail.payment?.amount} c={detail.payment?.currency} tone="#0c1b33" />
+                  <Money label={`Platform take (${detail.totals?.fee_pct ?? "—"}%)`} v={detail.totals?.platform_take} c={detail.totals?.currency} tone="#0f7a44" />
+                  <Money label="Net to mentor" v={detail.totals?.net_to_mentor} c={detail.totals?.currency} tone="#0c1b33" />
                   {detail.totals?.customer_refund > 0 && <Money label="Refunded" v={detail.totals.customer_refund} c={detail.totals.currency} tone="#0f7a44" />}
                   {detail.totals?.customer_credit > 0 && <Money label="Credit" v={detail.totals.customer_credit} c={detail.totals.currency} tone="#534ab7" />}
                   {detail.totals?.customer_charge > 0 && <Money label="Charged" v={detail.totals.customer_charge} c={detail.totals.currency} tone="#a32020" />}

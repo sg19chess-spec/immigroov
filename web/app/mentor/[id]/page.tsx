@@ -112,6 +112,7 @@ export default function MentorPage({ params }: { params: { id: string } }) {
       p_mentor_id: mentorId, p_service_id: svc.id, p_slot_time: slot, p_mentee_currency: mc,
       p_mentee_cost: svc.you, p_email: email, p_name: guest.name || null, p_timezone: tz,
       p_answers: ans, p_ppp_factor: svc.is_ppp ? factor : 1.0,
+      p_customer_country: COUNTRIES.find(([c]) => c === country)?.[1] || country || null,
     });
     setBusy(false);
     if (error) { setMsg({ t: error.message, ok: false }); return; }
