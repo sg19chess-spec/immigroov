@@ -84,19 +84,24 @@ export default function Bookings() {
 
   return (
     <div className="container">
-      <div className="section-head"><h2 className="sec">Your sessions</h2></div>
-      {msg && <div className="banner ok" style={{ marginBottom: 14 }}>{msg}</div>}
+      <div className="sessions-wrap">
+        <div className="section-head"><div><h2 className="sec">Your sessions</h2><div className="lead">Manage your upcoming and past mentoring sessions.</div></div></div>
+        {msg && <div className="banner ok" style={{ marginBottom: 14 }}>{msg}</div>}
 
-      {email === null && <div className="empty"><div className="ico">🔑</div>Sign in with your email to see your sessions.<br /><Link href="/login" className="btn btn-cta" style={{ marginTop: 14 }}>Sign in</Link></div>}
-      {email && rows.length === 0 && <div className="empty"><div className="ico">📅</div>No bookings under {email} yet.<br /><Link href="/" className="btn btn-cta" style={{ marginTop: 14 }}>Find a mentor</Link></div>}
+        {email === null && <div className="empty"><div className="ico">🔑</div>Sign in with your email to see your sessions.<br /><Link href="/login" className="btn btn-cta" style={{ marginTop: 14 }}>Sign in</Link></div>}
+        {email && rows.length === 0 && <div className="empty"><div className="ico">📅</div>No bookings under {email} yet.<br /><Link href="/" className="btn btn-cta" style={{ marginTop: 14 }}>Find a mentor</Link></div>}
 
-      {upcoming.length > 0 && <h3 style={{ fontSize: 15, color: "var(--muted)", margin: "8px 0 14px" }}>Upcoming</h3>}
-      <div className="grid">{upcoming.map((b, i) => <Card key={b.id} b={b} tz={tz} i={i} h={h} email={email || ""} />)}</div>
-      {past.length > 0 && <h3 style={{ fontSize: 15, color: "var(--muted)", margin: "30px 0 14px" }}>Past &amp; cancelled</h3>}
-      <div className="grid">{past.map((b, i) => <Card key={b.id} b={b} tz={tz} i={i} h={h} email={email || ""} dim />)}</div>
+        {upcoming.length > 0 && <div className="sess-group-h">Upcoming <span className="cnt">{upcoming.length}</span></div>}
+        <div className="sess-list">{upcoming.map((b, i) => <Card key={b.id} b={b} tz={tz} i={i} h={h} email={email || ""} />)}</div>
+        {past.length > 0 && <div className="sess-group-h" style={{ marginTop: 34 }}>Past &amp; cancelled <span className="cnt">{past.length}</span></div>}
+        <div className="sess-list">{past.map((b, i) => <Card key={b.id} b={b} tz={tz} i={i} h={h} email={email || ""} dim />)}</div>
+      </div>
     </div>
   );
 }
+
+const monBadge = (iso: string, tz: string) => new Intl.DateTimeFormat("en", { timeZone: tz, month: "short" }).format(new Date(iso)).toUpperCase();
+const dayBadge = (iso: string, tz: string) => new Intl.DateTimeFormat("en", { timeZone: tz, day: "numeric" }).format(new Date(iso));
 
 type Handlers = {
   cancel: (b: B) => void; accept: (o: number, s: string) => void; reject: (o: number) => void;
@@ -129,17 +134,22 @@ function Card({ b, tz, i, h, email, dim }: { b: B; tz: string; i: number; h: Han
 
   return (
     <div className="card reveal" style={{ padding: 0, overflow: "hidden", animationDelay: `${i * 50}ms`, opacity: dim ? 0.85 : 1 }}>
-      <div style={{ padding: "18px 20px", display: "flex", justifyContent: "space-between", gap: 10 }}>
-        <div>
-          <div style={{ fontWeight: 700, fontSize: 16 }}>{b.service_title}</div>
-          <div className="muted" style={{ fontSize: 13 }}>with {b.mentor_name}</div>
+      <div style={{ display: "flex", gap: 14, padding: "16px 18px" }}>
+        <div className="sess-date"><div className="m">{monBadge(b.slot_time, tz)}</div><div className="d">{dayBadge(b.slot_time, tz)}</div></div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "flex-start" }}>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontWeight: 800, fontSize: 16 }}>{b.service_title}</div>
+              <div className="muted" style={{ fontSize: 13 }}>with {b.mentor_name}</div>
+            </div>
+            <span className={`pill st-${b.status}`}>{b.status.replace("_", "-")}</span>
+          </div>
+          <div style={{ marginTop: 9 }}>
+            <span style={{ fontSize: 18, fontWeight: 800, letterSpacing: "-.02em" }}>{fmtTime(b.slot_time, tz)}</span>
+            <span className="muted" style={{ fontSize: 13 }}> · {fmtDate(b.slot_time, tz)}</span>
+          </div>
+          <div className="faint" style={{ fontSize: 12, marginTop: 3 }}>Your time ({tz}) · mentor {fmtTime(b.slot_time, b.mentor_tz)} ({b.mentor_tz}){b.reschedule_count > 0 ? ` · moved ${b.reschedule_count}×` : ""}</div>
         </div>
-        <span className={`pill st-${b.status}`}>{b.status}</span>
-      </div>
-      <div style={{ padding: "0 20px 14px" }}>
-        <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-.02em" }}>{fmtTime(b.slot_time, tz)}</div>
-        <div className="muted" style={{ fontSize: 13 }}>{fmtDate(b.slot_time, tz)} · your time ({tz})</div>
-        <div className="faint" style={{ fontSize: 12, marginTop: 4 }}>Mentor: {fmtTime(b.slot_time, b.mentor_tz)} ({b.mentor_tz}){b.reschedule_count > 0 ? ` · moved ${b.reschedule_count}×` : ""}</div>
       </div>
 
       {mentorOffer && (
@@ -188,19 +198,21 @@ function Card({ b, tz, i, h, email, dim }: { b: B; tz: string; i: number; h: Han
 
       {picking && <RescheduleSlots b={b} tz={tz} onPick={(s) => { setPicking(false); h.customerReschedule(b.id, s); }} onClose={() => setPicking(false)} />}
 
-      <div style={{ display: "flex", justifyContent: "space-between", padding: "12px 20px", borderTop: "1px solid var(--line)", fontSize: 12, background: "var(--surface-2)" }}>
-        <div><div className="faint">You paid</div><b>{b.cost != null ? money(b.cost, b.cost_currency) : "—"}</b></div>
-        <div style={{ textAlign: "right" }}><div className="faint">Mentor earns</div><b style={{ color: "var(--orange-d)" }}>{b.mentor_earn != null ? money(b.mentor_earn, b.mentor_currency) : "—"}</b></div>
+      <div className="sess-meta">
+        <span><span className="faint">You paid </span><b>{b.cost != null ? money(b.cost, b.cost_currency) : "—"}</b></span>
+        <span className="faint">Booking #{b.id}{b.service_duration ? ` · ${b.service_duration} min` : ""}</span>
       </div>
-      {b.ledger_summary && <div className="faint" style={{ fontSize: 11.5, padding: "8px 20px", background: "var(--surface-2)" }}>💸 {b.ledger_summary}</div>}
+      {b.ledger_summary && <div className="faint" style={{ fontSize: 11.5, padding: "8px 18px", background: "var(--surface-2)" }}>💸 {b.ledger_summary}</div>}
 
-      <div style={{ display: "flex", gap: 10, padding: 16, borderTop: "1px solid var(--line)", flexWrap: "wrap" }}>
-        {b.meeting_url && active && !canReport && <a href={b.meeting_url} target="_blank" className="btn btn-cta" style={{ flex: 1, minWidth: 130 }}>🎥 Join video call</a>}
-        {active && !busy && !picking && !canReport && <button className="btn-ghost" onClick={startReschedule}>Reschedule</button>}
-        {active && !busy && !canReport && <button className="btn-ghost" onClick={() => h.cancel(b)}>Cancel</button>}
-        {canReport && !busy && <button className="btn-ghost" style={{ color: "var(--bad)" }} onClick={() => h.flagNoShow(b.id)}>Mentor didn't show</button>}
-        {!active && !mentorNoShowOpen && !customerNoShow && !b.ledger_summary && <span className="faint" style={{ fontSize: 13, padding: "6px 0" }}>No actions available</span>}
-        {email && <button className="btn-ghost" onClick={() => setChatOpen((v) => !v)}>{chatOpen ? "Hide chat" : "💬 Message mentor"}</button>}
+      <div className="sess-foot">
+        {b.meeting_url && active && !canReport && <a href={b.meeting_url} target="_blank" className="btn btn-cta">🎥 Join video call</a>}
+        <div className="sess-btn-row">
+          {active && !busy && !picking && !canReport && <button className="btn-ghost btn-sm" onClick={startReschedule}>↻ Reschedule</button>}
+          {email && <button className="btn-ghost btn-sm" onClick={() => setChatOpen((v) => !v)}>{chatOpen ? "Hide chat" : "💬 Message mentor"}</button>}
+          {active && !busy && !canReport && <button className="btn-ghost btn-sm" style={{ color: "var(--bad)", marginLeft: "auto" }} onClick={() => h.cancel(b)}>Cancel</button>}
+        </div>
+        {canReport && !busy && <button className="btn-ghost btn-sm" style={{ color: "var(--bad)", width: "100%" }} onClick={() => h.flagNoShow(b.id)}>⚠ Report: mentor didn't show up</button>}
+        {!active && !mentorNoShowOpen && !customerNoShow && !b.ledger_summary && <span className="faint" style={{ fontSize: 12.5 }}>This session is closed — no actions available.</span>}
       </div>
       {chatOpen && email && <div style={{ padding: "0 16px 16px" }}><ChatThread bookingId={b.id} email={email} /></div>}
     </div>
