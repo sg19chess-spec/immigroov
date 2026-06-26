@@ -1,11 +1,12 @@
 import "./globals.css";
 import type { Metadata } from "next";
 import Nav from "@/components/Nav";
+import Footer from "@/components/Footer";
 import ChatWidget from "@/components/ChatWidget";
 
 export const metadata: Metadata = {
-  title: "Immigroov — Mentor Marketplace",
-  description: "Book 1:1 immigration mentoring sessions.",
+  title: "Immigroov — 1:1 Immigration Mentoring",
+  description: "Book private 1:1 video sessions with vetted immigration mentors — in your language, your timezone and fair local pricing.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -14,6 +15,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <Nav />
         {children}
+        <Footer />
         <ChatWidget />
       </body>
     </html>
