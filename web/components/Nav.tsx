@@ -48,6 +48,7 @@ export default function Nav() {
       </div>
 
       <div className="navspace" />
+      {!isMentor && !isAdmin && <Link href="/webinars">Webinars</Link>}
       {!isMentor && !isAdmin && <Link href="/bookings">My sessions</Link>}
       {email && <span className="muted hide-mobile" style={{ fontSize: 13 }}>{email}</span>}
       {email ? (

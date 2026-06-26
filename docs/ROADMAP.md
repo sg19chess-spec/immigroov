@@ -21,8 +21,15 @@ The admin view (`/admin`, `web/components/AdminManager.tsx`, `admin_*` RPCs) gai
 - ☐ Reschedule → payment hold/adjust
 Note: payments are currently MOCK (ledger only), so tests assert ledger/state, not real charges.
 
-## 3. Webinar feature (feasibility + basic)
-**Feasibility: YES, as a separate model — do NOT reuse `bookings`** (its GiST no-overlap
+## 3. Webinar feature (feasibility + basic) — ☑ MVP BUILT (`0055`)
+Built: `webinars` + `webinar_registrations`; RPCs `create_webinar` / `register_webinar`
+(capacity-checked, confirmation email) / `list_webinars` (public) / `mentor_webinars` /
+`cancel_webinar`; Jitsi room per webinar; `send_webinar_reminders()` cron (~1h before, batched).
+UI: public `/webinars` (list + register + reveal join link), mentor console **Webinars** tab
+(create/list/cancel), nav link. Verified: create→register→capacity-full→list/count (rolled back).
+RPCs ungated (demo) — gate with the rest before prod.
+
+**Feasibility (original): YES, as a separate model — do NOT reuse `bookings`** (its GiST no-overlap
 constraint, payouts, reschedule/no-show machinery are all 1:1-specific and would fight a
 1:many event). Clean shape:
 - `webinars` (mentor_id, title, description, start_time, duration, capacity, visibility
