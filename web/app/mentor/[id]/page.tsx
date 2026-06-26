@@ -38,7 +38,6 @@ export default function MentorPage({ params }: { params: { id: string } }) {
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [myEmail, setMyEmail] = useState<string | null>(null);
   const [guest, setGuest] = useState({ name: "", email: "" });
-  const [targetCountry, setTargetCountry] = useState("");
   const [engaged, setEngagedS] = useState(true); // assume true until mount to avoid SSR flash
 
   useEffect(() => { setMyEmail(getEmail()); }, []);
@@ -112,7 +111,7 @@ export default function MentorPage({ params }: { params: { id: string } }) {
     const { error } = await supabase.rpc("book_session_guest", {
       p_mentor_id: mentorId, p_service_id: svc.id, p_slot_time: slot, p_mentee_currency: mc,
       p_mentee_cost: svc.you, p_email: email, p_name: guest.name || null, p_timezone: tz,
-      p_answers: ans, p_ppp_factor: svc.is_ppp ? factor : 1.0, p_target_country: targetCountry || null,
+      p_answers: ans, p_ppp_factor: svc.is_ppp ? factor : 1.0,
     });
     setBusy(false);
     if (error) { setMsg({ t: error.message, ok: false }); return; }
@@ -256,15 +255,6 @@ export default function MentorPage({ params }: { params: { id: string } }) {
                       <input value={answers[q.id] || ""} onChange={(e) => setAnswers({ ...answers, [q.id]: e.target.value })} style={{ width: "100%" }} />
                     </div>
                   ))}
-                </div>
-              )}
-              {slot && (
-                <div style={{ marginTop: 16 }}>
-                  <label className="fld">Which country are you immigrating to? <span className="faint">(optional)</span></label>
-                  <select value={targetCountry} onChange={(e) => setTargetCountry(e.target.value)} style={{ width: "100%" }}>
-                    <option value="">Select a country…</option>
-                    {COUNTRIES.map(([code, name]) => <option key={code} value={name}>{name}</option>)}
-                  </select>
                 </div>
               )}
               {slot && !myEmail && (

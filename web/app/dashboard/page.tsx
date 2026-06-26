@@ -6,6 +6,8 @@ import AvailabilityManager from "@/components/AvailabilityManager";
 import SessionsManager from "@/components/SessionsManager";
 import ResourcesManager from "@/components/ResourcesManager";
 
+const COUNTRIES = ["United States", "Canada", "United Kingdom", "Australia", "Germany", "Netherlands", "New Zealand", "Ireland", "Singapore", "UAE", "Schengen / EU"];
+
 // Mentor console. For the demo you pick which mentor you are; in production this
 // resolves from the signed-in user (current_mentor_id) and the editor RPCs are
 // gated to the owning mentor.
@@ -16,6 +18,16 @@ export default function Dashboard() {
   const [tz, setTz] = useState("UTC");
   const [tab, setTab] = useState<"services" | "availability" | "sessions" | "resources">("services");
   const [stats, setStats] = useState({ services: 0, active: 0, days: 0, currency: "USD" });
+  const [country, setCountry] = useState("");
+
+  useEffect(() => {
+    if (!mentorId) return;
+    supabase.rpc("demo_get_mentor_country", { p_mentor_id: mentorId }).then(({ data }) => setCountry((data as string) || ""));
+  }, [mentorId]);
+  async function saveCountry(v: string) {
+    setCountry(v);
+    if (mentorId) await supabase.rpc("demo_set_mentor_country", { p_mentor_id: mentorId, p_country: v || null });
+  }
 
   useEffect(() => {
     supabase.rpc("search_mentors", {}).then(({ data }) => {
@@ -52,9 +64,15 @@ export default function Dashboard() {
           <h2 className="sec">Mentor console</h2>
           <div className="lead">Manage your services and availability.</div>
         </div>
-        <select className="full-sm" value={mentorId ?? ""} onChange={(e) => { const id = Number(e.target.value); setMentorId(id); setTz(mentors.find((m) => m.mentor_id === id)?.mentor_tz || "UTC"); }}>
-          {mentors.map((m) => <option key={m.mentor_id} value={m.mentor_id}>{m.name} ({m.mentor_tz})</option>)}
-        </select>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <select className="full-sm" value={mentorId ?? ""} onChange={(e) => { const id = Number(e.target.value); setMentorId(id); setTz(mentors.find((m) => m.mentor_id === id)?.mentor_tz || "UTC"); }}>
+            {mentors.map((m) => <option key={m.mentor_id} value={m.mentor_id}>{m.name} ({m.mentor_tz})</option>)}
+          </select>
+          <select className="full-sm" value={country} onChange={(e) => saveCountry(e.target.value)} title="Destination country you advise on — used for admin reporting">
+            <option value="">Country you advise on…</option>
+            {COUNTRIES.map((c) => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </div>
       </div>
 
       <div className="stats reveal" style={{ marginBottom: 22 }}>

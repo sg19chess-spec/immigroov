@@ -8,7 +8,7 @@ The admin view (`/admin`, `web/components/AdminManager.tsx`, `admin_*` RPCs) gai
 
 **Filters** (on the Activity list) — ☑ DONE (`0052` + AdminManager filter bar):
 - ☑ Mentor name · ☑ Customer email · ☑ Mentor email · ☑ Date range · ☑ Session status
-- ☑ Country name → **target immigration country** (per owner). New `bookings.target_country`, captured by an optional selector in the booking form; admin filters on it.
+- ☑ Country name → **destination country, derived from the mentor** (per owner: booking a mentor implies their country, so the customer isn't asked). `mentors.country` set in the mentor console; `admin_bookings` returns `coalesce(bookings.target_country, mentors.country)`.
 
 **New views:**
 - ☑ **Mentor Payout View** — `admin_payouts()` + Payouts tab. Per booking: gross, fee % (service `platform_fee` else `immigroov_commission_pct`=15), deduction, net payout, payout status. Verified.
