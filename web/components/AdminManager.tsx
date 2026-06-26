@@ -4,9 +4,15 @@ import { createClient } from "@/lib/supabase/client";
 
 type Booking = {
   id: number; created_at: string; status: string; slot_time: string;
-  service_title: string; mentor_name: string; mentee_email: string;
+  service_title: string; mentor_name: string; mentor_email: string; mentee_email: string; target_country: string | null;
   cost: number | null; cost_currency: string | null; mentor_payout: number | null;
   reschedule_count: number; no_show_by: string | null; ledger_summary: string | null;
+};
+type Payout = {
+  booking_id: number; created_at: string; status: string; slot_time: string;
+  service_title: string; mentor_name: string; mentee_email: string;
+  gross: number | null; currency: string | null; fee_pct: number | null;
+  deduction: number | null; net_payout: number | null; payout_status: string;
 };
 type Ledger = {
   id: number; created_at: string; booking_id: number; party: string; kind: string; pct: number | null;
@@ -29,10 +35,12 @@ export default function AdminManager() {
   const supabase = createClient();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [ledger, setLedger] = useState<Ledger[]>([]);
-  const [view, setView] = useState<"activity" | "ledger">("activity");
+  const [payouts, setPayouts] = useState<Payout[]>([]);
+  const [view, setView] = useState<"activity" | "payouts" | "ledger">("activity");
   const [loading, setLoading] = useState(true);
   const [detail, setDetail] = useState<any | null>(null);
   const [detailId, setDetailId] = useState<number | null>(null);
+  const [f, setF] = useState({ mentor: "", custEmail: "", mentorEmail: "", from: "", to: "", status: "", country: "" });
 
   async function openDetail(id: number) {
     setDetailId(id); setDetail(null);
@@ -42,12 +50,14 @@ export default function AdminManager() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [{ data: b }, { data: l }] = await Promise.all([
+    const [{ data: b }, { data: l }, { data: p }] = await Promise.all([
       supabase.rpc("admin_bookings"),
       supabase.rpc("admin_ledger"),
+      supabase.rpc("admin_payouts"),
     ]);
     setBookings((b as Booking[]) || []);
     setLedger((l as Ledger[]) || []);
+    setPayouts((p as Payout[]) || []);
     setLoading(false);
   }, [supabase]);
   useEffect(() => { load(); }, [load]);
@@ -56,8 +66,22 @@ export default function AdminManager() {
   const sum = (k: string) => ledger.filter((x) => x.kind === k).reduce((a, x) => a + Number(x.amount || 0), 0);
   const cur = ledger[0]?.currency || "USD";
 
+  const statuses = ["confirmed", "rescheduled", "completed", "cancelled", "no_show"];
+  const countries = Array.from(new Set(bookings.map((b) => b.target_country).filter(Boolean))) as string[];
+  const inRange = (iso: string) =>
+    (!f.from || new Date(iso) >= new Date(f.from)) && (!f.to || new Date(iso) <= new Date(f.to + "T23:59:59"));
+  const has = (hay: string | null, needle: string) => !needle || (hay || "").toLowerCase().includes(needle.toLowerCase());
+  const fBookings = bookings.filter((b) =>
+    has(b.mentor_name, f.mentor) && has(b.mentor_email, f.mentorEmail) && has(b.mentee_email, f.custEmail) &&
+    (!f.status || b.status === f.status) && (!f.country || (b.target_country || "") === f.country) && inRange(b.created_at));
+  const fPayouts = payouts.filter((p) =>
+    has(p.mentor_name, f.mentor) && has(p.mentee_email, f.custEmail) &&
+    (!f.status || p.status === f.status) && inRange(p.created_at));
+  const anyFilter = Object.values(f).some(Boolean);
+
   const th: React.CSSProperties = { textAlign: "left", padding: "9px 12px", fontSize: 11.5, textTransform: "uppercase", letterSpacing: ".04em", color: "var(--muted)", borderBottom: "1px solid var(--line)", whiteSpace: "nowrap" };
   const td: React.CSSProperties = { padding: "9px 12px", fontSize: 13, borderBottom: "1px solid var(--line)", verticalAlign: "top" };
+  const fi: React.CSSProperties = { padding: "6px 9px", fontSize: 12.5, border: "1px solid var(--line)", borderRadius: 8, background: "var(--surface)", color: "inherit" };
 
   return (
     <div>
@@ -72,31 +96,81 @@ export default function AdminManager() {
 
       <div className="seg" style={{ marginBottom: 16 }}>
         <button className={view === "activity" ? "on" : ""} onClick={() => setView("activity")}>Activity ({bookings.length})</button>
+        <button className={view === "payouts" ? "on" : ""} onClick={() => setView("payouts")}>Payouts ({payouts.length})</button>
         <button className={view === "ledger" ? "on" : ""} onClick={() => setView("ledger")}>Ledger ({ledger.length})</button>
       </div>
+
+      {(view === "activity" || view === "payouts") && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 14, alignItems: "center" }}>
+          <input placeholder="Mentor name" value={f.mentor} onChange={(e) => setF({ ...f, mentor: e.target.value })} style={fi} />
+          <input placeholder="Customer email" value={f.custEmail} onChange={(e) => setF({ ...f, custEmail: e.target.value })} style={fi} />
+          {view === "activity" && <input placeholder="Mentor email" value={f.mentorEmail} onChange={(e) => setF({ ...f, mentorEmail: e.target.value })} style={fi} />}
+          <select value={f.status} onChange={(e) => setF({ ...f, status: e.target.value })} style={fi}>
+            <option value="">Any status</option>
+            {statuses.map((s) => <option key={s} value={s}>{s}</option>)}
+          </select>
+          {view === "activity" && (
+            <select value={f.country} onChange={(e) => setF({ ...f, country: e.target.value })} style={fi}>
+              <option value="">Any country</option>
+              {countries.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+          )}
+          <label style={{ fontSize: 12, color: "var(--muted)" }}>From <input type="date" value={f.from} onChange={(e) => setF({ ...f, from: e.target.value })} style={fi} /></label>
+          <label style={{ fontSize: 12, color: "var(--muted)" }}>To <input type="date" value={f.to} onChange={(e) => setF({ ...f, to: e.target.value })} style={fi} /></label>
+          {anyFilter && <button className="btn-ghost btn-sm" onClick={() => setF({ mentor: "", custEmail: "", mentorEmail: "", from: "", to: "", status: "", country: "" })}>Clear</button>}
+        </div>
+      )}
 
       {loading && <div className="empty">Loading…</div>}
 
       {!loading && view === "activity" && (
-        bookings.length === 0 ? <div className="empty">No bookings yet.</div> :
+        fBookings.length === 0 ? <div className="empty">{bookings.length ? "No bookings match these filters." : "No bookings yet."}</div> :
         <div style={{ overflowX: "auto", border: "1px solid var(--line)", borderRadius: "var(--r-md)" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 860 }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 940 }}>
             <thead><tr>
               <th style={th}>Booked</th><th style={th}>Status</th><th style={th}>Service</th><th style={th}>Mentor</th>
-              <th style={th}>Mentee</th><th style={th}>Session</th><th style={th}>Paid</th><th style={th}>Resch.</th><th style={th}>Ledger</th>
+              <th style={th}>Mentee</th><th style={th}>Country</th><th style={th}>Session</th><th style={th}>Paid</th><th style={th}>Resch.</th><th style={th}>Ledger</th>
             </tr></thead>
             <tbody>
-              {bookings.map((b) => (
+              {fBookings.map((b) => (
                 <tr key={b.id} onClick={() => openDetail(b.id)} style={{ cursor: "pointer" }}>
                   <td style={td}>{fmt(b.created_at)}</td>
                   <td style={td}><span className={`pill st-${b.status}`}>{b.status}{b.no_show_by ? ` · ${b.no_show_by}` : ""}</span></td>
                   <td style={td}>{b.service_title}</td>
                   <td style={td}>{b.mentor_name}</td>
                   <td style={td}>{b.mentee_email}</td>
+                  <td style={td}>{b.target_country || "—"}</td>
                   <td style={td}>{fmt(b.slot_time)}</td>
                   <td style={td}>{money(b.cost, b.cost_currency)}</td>
                   <td style={td}>{b.reschedule_count}</td>
                   <td style={{ ...td, color: "var(--muted)", fontSize: 12 }}>{b.ledger_summary || "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {!loading && view === "payouts" && (
+        fPayouts.length === 0 ? <div className="empty">{payouts.length ? "No payouts match these filters." : "No payable sessions yet."}</div> :
+        <div style={{ overflowX: "auto", border: "1px solid var(--line)", borderRadius: "var(--r-md)" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 900 }}>
+            <thead><tr>
+              <th style={th}>Booked</th><th style={th}>Status</th><th style={th}>Mentor</th><th style={th}>Service</th>
+              <th style={th}>Gross</th><th style={th}>Fee %</th><th style={th}>Deduction</th><th style={th}>Net payout</th><th style={th}>Payout</th>
+            </tr></thead>
+            <tbody>
+              {fPayouts.map((p) => (
+                <tr key={p.booking_id} onClick={() => openDetail(p.booking_id)} style={{ cursor: "pointer" }}>
+                  <td style={td}>{fmt(p.created_at)}</td>
+                  <td style={td}><span className={`pill st-${p.status}`}>{p.status}</span></td>
+                  <td style={td}>{p.mentor_name}</td>
+                  <td style={td}>{p.service_title}</td>
+                  <td style={td}>{money(p.gross, p.currency)}</td>
+                  <td style={td}>{p.fee_pct == null ? "—" : `${p.fee_pct}%`}</td>
+                  <td style={{ ...td, color: "#a32020" }}>−{money(p.deduction, p.currency)}</td>
+                  <td style={{ ...td, fontWeight: 800, color: "#0f7a44" }}>{money(p.net_payout, p.currency)}</td>
+                  <td style={td}><span className={`pill ${p.payout_status === "paid" ? "st-completed" : "st-pending"}`}>{p.payout_status}</span></td>
                 </tr>
               ))}
             </tbody>
