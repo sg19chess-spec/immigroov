@@ -81,7 +81,9 @@ export default function WebinarsManager({ mentorId }: { mentorId: number }) {
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {rows.map((w) => (
             <div key={w.id} className="card" style={{ padding: 16, display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-              <div>
+              <div style={{ display: "flex", gap: 13, minWidth: 0 }}>
+                <div className="sess-date"><div className="m">{new Intl.DateTimeFormat("en", { month: "short" }).format(new Date(w.start_time)).toUpperCase()}</div><div className="d">{new Date(w.start_time).getDate()}</div></div>
+                <div style={{ minWidth: 0 }}>
                 <div style={{ fontWeight: 800 }}>{w.title} <span className={`pill st-${w.status === "scheduled" ? "confirmed" : "cancelled"}`}>{w.status}</span></div>
                 <div className="faint" style={{ fontSize: 13 }}>{fmt(w.start_time)} · {w.duration} min · {w.visibility}</div>
                 <div className="faint" style={{ fontSize: 12.5, marginTop: 2 }}>
@@ -101,6 +103,7 @@ export default function WebinarsManager({ mentorId }: { mentorId: number }) {
                       regs.map((r, i) => <div key={i} style={{ padding: "3px 0", borderBottom: i < regs.length - 1 ? "1px solid var(--line)" : "none" }}>{r.name} · {r.email} <span className="faint">· {new Date(r.registered_at).toLocaleDateString()}</span></div>)}
                   </div>
                 )}
+                </div>
               </div>
               {w.status === "scheduled" && <button className="btn-ghost btn-sm" style={{ color: "var(--bad)", alignSelf: "start" }} onClick={() => cancel(w.id)}>Cancel</button>}
             </div>

@@ -26,6 +26,11 @@ function wallToUtcISO(dateStr: string, timeStr: string, tz: string) {
 }
 
 const isActive = (st: string) => !["cancelled", "completed", "no_show"].includes(st);
+const monB = (iso: string, tz: string) => new Intl.DateTimeFormat("en", { timeZone: tz, month: "short" }).format(new Date(iso)).toUpperCase();
+const dayB = (iso: string, tz: string) => new Intl.DateTimeFormat("en", { timeZone: tz, day: "numeric" }).format(new Date(iso));
+const DateBadge = ({ iso, tz }: { iso: string; tz: string }) => (
+  <div className="sess-date"><div className="m">{monB(iso, tz)}</div><div className="d">{dayB(iso, tz)}</div></div>
+);
 
 export default function SessionsManager({ mentorId, mentorTz }: { mentorId: number; mentorTz: string }) {
   const supabase = createClient();
@@ -103,15 +108,18 @@ export default function SessionsManager({ mentorId, mentorTz }: { mentorId: numb
     return (
       <div className="sess-card" key={b.id}>
         <div className="sess-card-head">
-          <div className="sess-info">
-            <div style={{ fontWeight: 700 }}>{b.service_title} <span className={`pill st-${b.status}`} style={{ marginLeft: 4 }}>{b.status}</span></div>
-            <div className="muted" style={{ fontSize: 12.5, marginTop: 2 }}>with {b.mentee_name} · {b.mentee_email}</div>
-            <div style={{ fontSize: 13, marginTop: 4 }}><b>{fmtTime(b.slot_time, mentorTz)}</b> · {fmtDate(b.slot_time, mentorTz)}{b.reschedule_count > 0 ? ` · moved ${b.reschedule_count}×` : ""}{b.mentor_confirmed_at ? " · ✓ confirmed" : ""}</div>
+          <div style={{ display: "flex", gap: 12, minWidth: 0 }}>
+            <DateBadge iso={b.slot_time} tz={mentorTz} />
+            <div className="sess-info">
+              <div style={{ fontWeight: 800 }}>{b.service_title} <span className={`pill st-${b.status}`} style={{ marginLeft: 4 }}>{b.status.replace("_", "-")}</span></div>
+              <div className="muted" style={{ fontSize: 12.5, marginTop: 2 }}>with {b.mentee_name} · {b.mentee_email}</div>
+              <div style={{ fontSize: 13, marginTop: 4 }}><b>{fmtTime(b.slot_time, mentorTz)}</b> · {fmtDate(b.slot_time, mentorTz)}{b.reschedule_count > 0 ? ` · moved ${b.reschedule_count}×` : ""}{b.mentor_confirmed_at ? " · ✓ confirmed" : ""}</div>
+            </div>
           </div>
           {showActions && (
             <div className="sess-actions">
-              {b.meeting_url && <a href={b.meeting_url} target="_blank" className="btn-ghost btn-sm">🎥 Join</a>}
-              <button className="btn-ghost btn-sm" onClick={() => setProposing(b.id)}>Reschedule</button>
+              {b.meeting_url && <a href={b.meeting_url} target="_blank" className="btn-cta btn-sm">🎥 Join</a>}
+              <button className="btn-ghost btn-sm" onClick={() => setProposing(b.id)}>↻ Reschedule</button>
               <button className="btn-ghost btn-sm" style={{ color: "var(--bad)" }} onClick={() => cancel(b.id)}>Cancel</button>
             </div>
           )}
@@ -179,11 +187,14 @@ export default function SessionsManager({ mentorId, mentorTz }: { mentorId: numb
     const mentorNoShow = b.status === "no_show" && b.no_show_by === "mentor";
     return (
       <div className="sess-card past" key={b.id}>
-        <div style={{ minWidth: 0 }}>
-          <div style={{ fontWeight: 700 }}>{b.service_title} <span className={`pill st-${b.status}`} style={{ marginLeft: 4 }}>{b.status}</span></div>
-          <div className="muted" style={{ fontSize: 12.5, marginTop: 2 }}>with {b.mentee_name} · {b.mentee_email}</div>
-          <div style={{ fontSize: 13, marginTop: 4 }}>{fmtTime(b.slot_time, mentorTz)} · {fmtDate(b.slot_time, mentorTz)} ({mentorTz})</div>
-          {b.ledger_summary && <div className="faint" style={{ fontSize: 11.5, marginTop: 4 }}>💸 {b.ledger_summary}</div>}
+        <div style={{ display: "flex", gap: 12, minWidth: 0 }}>
+          <DateBadge iso={b.slot_time} tz={mentorTz} />
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontWeight: 800 }}>{b.service_title} <span className={`pill st-${b.status}`} style={{ marginLeft: 4 }}>{b.status.replace("_", "-")}</span></div>
+            <div className="muted" style={{ fontSize: 12.5, marginTop: 2 }}>with {b.mentee_name} · {b.mentee_email}</div>
+            <div style={{ fontSize: 13, marginTop: 4 }}>{fmtTime(b.slot_time, mentorTz)} · {fmtDate(b.slot_time, mentorTz)} ({mentorTz})</div>
+            {b.ledger_summary && <div className="faint" style={{ fontSize: 11.5, marginTop: 4 }}>💸 {b.ledger_summary}</div>}
+          </div>
         </div>
         {canReport && (
           <div className="actions" style={{ marginTop: 8 }}>
@@ -220,9 +231,9 @@ export default function SessionsManager({ mentorId, mentorTz }: { mentorId: numb
       </div>
       {msg && <div className="banner ok">{msg}</div>}
 
-      {upcoming.length > 0 && <h3 style={{ fontSize: 14, color: "var(--muted)", margin: "14px 0 8px" }}>Upcoming ({upcoming.length})</h3>}
+      {upcoming.length > 0 && <div className="sess-group-h" style={{ fontSize: 16, marginTop: 16 }}>Upcoming <span className="cnt">{upcoming.length}</span></div>}
       {upcoming.map(manageRow)}
-      {past.length > 0 && <h3 style={{ fontSize: 14, color: "var(--muted)", margin: "22px 0 8px" }}>Past &amp; completed ({past.length})</h3>}
+      {past.length > 0 && <div className="sess-group-h" style={{ fontSize: 16, marginTop: 24 }}>Past &amp; completed <span className="cnt">{past.length}</span></div>}
       {past.map(pastRow)}
       {rows.length === 0 && <div className="empty" style={{ padding: "32px 10px" }}><div className="ico">📅</div>No sessions yet.</div>}
     </div>

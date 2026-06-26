@@ -141,7 +141,7 @@ export default function AdminManager() {
       {!loading && view === "activity" && (
         fBookings.length === 0 ? <div className="empty">{bookings.length ? "No bookings match these filters." : "No bookings yet."}</div> :
         <div style={{ overflowX: "auto", border: "1px solid var(--line)", borderRadius: "var(--r-md)" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 940 }}>
+          <table className="adm-table" style={{ width: "100%", borderCollapse: "collapse", minWidth: 940 }}>
             <thead><tr>
               <th style={th}>Booked</th><th style={th}>Status</th><th style={th}>Service</th><th style={th}>Mentor</th>
               <th style={th}>Mentee</th><th style={th}>Country</th><th style={th}>Session</th><th style={th}>Paid</th><th style={th}>Resch.</th><th style={th}>Ledger</th>
@@ -169,7 +169,7 @@ export default function AdminManager() {
       {!loading && view === "payouts" && (
         fPayouts.length === 0 ? <div className="empty">{payouts.length ? "No payouts match these filters." : "No payable sessions yet."}</div> :
         <div style={{ overflowX: "auto", border: "1px solid var(--line)", borderRadius: "var(--r-md)" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 900 }}>
+          <table className="adm-table" style={{ width: "100%", borderCollapse: "collapse", minWidth: 900 }}>
             <thead><tr>
               <th style={th}>Booked</th><th style={th}>Status</th><th style={th}>Mentor</th><th style={th}>Service</th>
               <th style={th}>Gross</th><th style={th}>Fee %</th><th style={th}>Deduction</th><th style={th}>Net payout</th><th style={th}>Payout</th>
@@ -196,7 +196,7 @@ export default function AdminManager() {
       {!loading && view === "ledger" && (
         ledger.length === 0 ? <div className="empty">No ledger entries yet — refunds, credits, charges and penalties show up here.</div> :
         <div style={{ overflowX: "auto", border: "1px solid var(--line)", borderRadius: "var(--r-md)" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 920 }}>
+          <table className="adm-table" style={{ width: "100%", borderCollapse: "collapse", minWidth: 920 }}>
             <thead><tr>
               <th style={th}>When</th><th style={th}>#</th><th style={th}>Party</th><th style={th}>Kind</th><th style={th}>%</th>
               <th style={th}>Amount</th><th style={th}>Mentor</th><th style={th}>Mentee</th><th style={th}>Reason</th>
@@ -229,7 +229,7 @@ export default function AdminManager() {
             <div className="stat"><div className="n" style={{ color: "#534ab7" }}>{webinars.reduce((a, w) => a + w.registrations, 0)}</div><div className="l">Total registrations</div></div>
           </div>
           <div style={{ overflowX: "auto", border: "1px solid var(--line)", borderRadius: "var(--r-md)" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 820 }}>
+            <table className="adm-table" style={{ width: "100%", borderCollapse: "collapse", minWidth: 820 }}>
               <thead><tr>
                 <th style={th}>Starts</th><th style={th}>Title</th><th style={th}>Mentor</th><th style={th}>Visibility</th>
                 <th style={th}>Status</th><th style={th}>Registered</th>
