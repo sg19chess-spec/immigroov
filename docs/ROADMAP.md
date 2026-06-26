@@ -6,17 +6,13 @@ working versions, no over-engineering. Status legend: ☐ todo · ◐ in progres
 ## 1. Admin dashboard enhancements
 The admin view (`/admin`, `web/components/AdminManager.tsx`, `admin_*` RPCs) gains:
 
-**Filters** (on the Activity list):
-- ◐ Mentor name
-- ◐ Customer email
-- ◐ Mentor email  *(needs `admin_bookings` to also return mentor email)*
-- ◐ Date range
-- ◐ Session status
-- ☐ Country name  *(BLOCKED — no country on bookings/mentors today; awaiting decision on the source)*
+**Filters** (on the Activity list) — ☑ DONE (`0052` + AdminManager filter bar):
+- ☑ Mentor name · ☑ Customer email · ☑ Mentor email · ☑ Date range · ☑ Session status
+- ☑ Country name → **target immigration country** (per owner). New `bookings.target_country`, captured by an optional selector in the booking form; admin filters on it.
 
 **New views:**
-- ◐ **Mentor Payout View** — per booking: gross amount, platform fee % (`immigroov_commission_pct`=15), deduction, net payout, payout status (`mentor_payouts.status`). New `admin_payouts()` RPC + tab.
-- ☐ **Referral Tracking View** — uses existing `referral_links` (referrer_mentor_id → referred_user_id, type). Bare-minimum: who referred whom + date + type. Note: customer→customer referrals and referral *credits/rewards* are NOT modeled yet — would need schema additions.
+- ☑ **Mentor Payout View** — `admin_payouts()` + Payouts tab. Per booking: gross, fee % (service `platform_fee` else `immigroov_commission_pct`=15), deduction, net payout, payout status. Verified.
+- ☐ **Referral Tracking View** — uses existing `referral_links` (referrer_mentor_id → referred_user_id, type). Bare-minimum: who referred whom + date + type. **Note for owner:** customer→customer referrals and referral *credits/rewards* are NOT modeled yet — needs schema additions; decide scope before building.
 
 ## 2. Scheduling + payment integration tests
 - ☐ Booked → payment captured
