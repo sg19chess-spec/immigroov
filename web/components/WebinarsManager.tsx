@@ -14,6 +14,15 @@ export default function WebinarsManager({ mentorId }: { mentorId: number }) {
   const [form, setForm] = useState({ title: "", description: "", start: "", duration: 60, capacity: "", visibility: "public" });
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ t: string; ok: boolean } | null>(null);
+  const [regsFor, setRegsFor] = useState<number | null>(null);
+  const [regs, setRegs] = useState<{ name: string; email: string; registered_at: string }[]>([]);
+
+  async function toggleRegs(id: number) {
+    if (regsFor === id) { setRegsFor(null); return; }
+    setRegsFor(id); setRegs([]);
+    const { data } = await supabase.rpc("webinar_registrants", { p_webinar_id: id });
+    setRegs((data as any[]) || []);
+  }
 
   const load = useCallback(async () => {
     const { data } = await supabase.rpc("mentor_webinars", { p_mentor_id: mentorId });
@@ -68,8 +77,18 @@ export default function WebinarsManager({ mentorId }: { mentorId: number }) {
               <div>
                 <div style={{ fontWeight: 800 }}>{w.title} <span className={`pill st-${w.status === "scheduled" ? "confirmed" : "cancelled"}`}>{w.status}</span></div>
                 <div className="faint" style={{ fontSize: 13 }}>{fmt(w.start_time)} · {w.duration} min · {w.visibility}</div>
-                <div className="faint" style={{ fontSize: 12.5, marginTop: 2 }}>{w.registrations}{w.capacity != null ? ` / ${w.capacity}` : ""} registered</div>
+                <div className="faint" style={{ fontSize: 12.5, marginTop: 2 }}>
+                  <button className="btn-ghost btn-sm" style={{ padding: "2px 8px" }} onClick={() => toggleRegs(w.id)}>
+                    {regsFor === w.id ? "Hide" : "View"} registrants ({w.registrations}{w.capacity != null ? ` / ${w.capacity}` : ""})
+                  </button>
+                </div>
                 {w.room_url && <a href={w.room_url} target="_blank" rel="noreferrer" style={{ fontSize: 12.5, fontWeight: 700 }}>Join link</a>}
+                {regsFor === w.id && (
+                  <div style={{ marginTop: 8, border: "1px solid var(--line)", borderRadius: 8, padding: 10, fontSize: 12.5 }}>
+                    {regs.length === 0 ? <span className="faint">No registrants yet.</span> :
+                      regs.map((r, i) => <div key={i} style={{ padding: "3px 0", borderBottom: i < regs.length - 1 ? "1px solid var(--line)" : "none" }}>{r.name} · {r.email} <span className="faint">· {new Date(r.registered_at).toLocaleDateString()}</span></div>)}
+                  </div>
+                )}
               </div>
               {w.status === "scheduled" && <button className="btn-ghost btn-sm" style={{ color: "var(--bad)", alignSelf: "start" }} onClick={() => cancel(w.id)}>Cancel</button>}
             </div>

@@ -29,17 +29,24 @@ const fmtZ = (s: string | null, tz?: string) => {
 const money = (a: number | null, c: string | null) => (a == null ? "—" : `${Number(a).toFixed(2)} ${c || ""}`.trim());
 const kindColor: Record<string, string> = { refund: "#0f7a44", credit: "#534ab7", charge: "#a32020", penalty: "#a32020" };
 
-// Admin overview — cross-mentor activity + the full ledger. Read-only.
-// Backed by admin_bookings() / admin_ledger() (SECURITY DEFINER; gate to an admin role for prod).
+type Webinar = {
+  id: number; title: string; mentor_name: string; start_time: string; duration: number;
+  capacity: number | null; visibility: string; status: string; registrations: number;
+};
+
+// Admin overview — cross-mentor activity, ledger, payouts and webinars. Read-only.
+// Backed by admin_bookings/ledger/payouts/webinars + webinar_registrants (SECURITY DEFINER; gate for prod).
 export default function AdminManager() {
   const supabase = createClient();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [ledger, setLedger] = useState<Ledger[]>([]);
   const [payouts, setPayouts] = useState<Payout[]>([]);
-  const [view, setView] = useState<"activity" | "payouts" | "ledger">("activity");
+  const [webinars, setWebinars] = useState<Webinar[]>([]);
+  const [view, setView] = useState<"activity" | "payouts" | "ledger" | "webinars">("activity");
   const [loading, setLoading] = useState(true);
   const [detail, setDetail] = useState<any | null>(null);
   const [detailId, setDetailId] = useState<number | null>(null);
+  const [regs, setRegs] = useState<{ title: string; rows: any[] } | null>(null);
   const [f, setF] = useState({ mentor: "", custEmail: "", mentorEmail: "", from: "", to: "", status: "", country: "" });
 
   async function openDetail(id: number) {
@@ -47,17 +54,24 @@ export default function AdminManager() {
     const { data } = await supabase.rpc("admin_booking_detail", { p_booking_id: id });
     setDetail(data || {});
   }
+  async function openRegs(w: Webinar) {
+    setRegs({ title: w.title, rows: [] });
+    const { data } = await supabase.rpc("webinar_registrants", { p_webinar_id: w.id });
+    setRegs({ title: w.title, rows: (data as any[]) || [] });
+  }
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [{ data: b }, { data: l }, { data: p }] = await Promise.all([
+    const [{ data: b }, { data: l }, { data: p }, { data: w }] = await Promise.all([
       supabase.rpc("admin_bookings"),
       supabase.rpc("admin_ledger"),
       supabase.rpc("admin_payouts"),
+      supabase.rpc("admin_webinars"),
     ]);
     setBookings((b as Booking[]) || []);
     setLedger((l as Ledger[]) || []);
     setPayouts((p as Payout[]) || []);
+    setWebinars((w as Webinar[]) || []);
     setLoading(false);
   }, [supabase]);
   useEffect(() => { load(); }, [load]);
@@ -98,6 +112,7 @@ export default function AdminManager() {
         <button className={view === "activity" ? "on" : ""} onClick={() => setView("activity")}>Activity ({bookings.length})</button>
         <button className={view === "payouts" ? "on" : ""} onClick={() => setView("payouts")}>Payouts ({payouts.length})</button>
         <button className={view === "ledger" ? "on" : ""} onClick={() => setView("ledger")}>Ledger ({ledger.length})</button>
+        <button className={view === "webinars" ? "on" : ""} onClick={() => setView("webinars")}>Webinars ({webinars.length})</button>
       </div>
 
       {(view === "activity" || view === "payouts") && (
@@ -202,6 +217,60 @@ export default function AdminManager() {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {!loading && view === "webinars" && (
+        webinars.length === 0 ? <div className="empty">No webinars yet.</div> :
+        <>
+          <div className="stats" style={{ marginBottom: 16 }}>
+            <div className="stat"><div className="n">{webinars.length}</div><div className="l">Total webinars</div></div>
+            <div className="stat"><div className="n" style={{ color: "var(--ok)" }}>{webinars.filter((w) => w.status === "scheduled" && new Date(w.start_time) > new Date()).length}</div><div className="l">Upcoming</div></div>
+            <div className="stat"><div className="n" style={{ color: "#534ab7" }}>{webinars.reduce((a, w) => a + w.registrations, 0)}</div><div className="l">Total registrations</div></div>
+          </div>
+          <div style={{ overflowX: "auto", border: "1px solid var(--line)", borderRadius: "var(--r-md)" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 820 }}>
+              <thead><tr>
+                <th style={th}>Starts</th><th style={th}>Title</th><th style={th}>Mentor</th><th style={th}>Visibility</th>
+                <th style={th}>Status</th><th style={th}>Registered</th>
+              </tr></thead>
+              <tbody>
+                {webinars.map((w) => (
+                  <tr key={w.id} onClick={() => openRegs(w)} style={{ cursor: "pointer" }} title="See who registered">
+                    <td style={td}>{fmt(w.start_time)}</td>
+                    <td style={td}>{w.title}</td>
+                    <td style={td}>{w.mentor_name}</td>
+                    <td style={td}>{w.visibility}</td>
+                    <td style={td}><span className={`pill st-${w.status === "scheduled" ? "confirmed" : "cancelled"}`}>{w.status}</span></td>
+                    <td style={{ ...td, fontWeight: 700 }}>{w.registrations}{w.capacity != null ? ` / ${w.capacity}` : ""}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+
+      {regs && (
+        <div onClick={() => setRegs(null)} style={{ position: "fixed", inset: 0, background: "rgba(10,34,64,.45)", zIndex: 1000, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "32px 16px", overflowY: "auto" }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: "var(--surface)", borderRadius: "var(--r-lg, 16px)", width: "100%", maxWidth: 520, boxShadow: "0 20px 60px rgba(0,0,0,.3)", overflow: "hidden" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "16px 20px", background: "var(--navy)", color: "#fff" }}>
+              <b style={{ fontSize: 15 }}>Registrants · {regs.title}</b>
+              <span style={{ marginLeft: "auto", fontSize: 13, opacity: .85 }}>{regs.rows.length}</span>
+              <button onClick={() => setRegs(null)} style={{ background: "transparent", border: "none", color: "#fff", fontSize: 22, cursor: "pointer", lineHeight: 1, marginLeft: 8 }}>×</button>
+            </div>
+            <div style={{ padding: 16 }}>
+              {regs.rows.length === 0 ? <div className="empty">No registrants yet.</div> :
+                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                  <thead><tr><th style={th}>Name</th><th style={th}>Email</th><th style={th}>Registered</th></tr></thead>
+                  <tbody>
+                    {regs.rows.map((r, i) => (
+                      <tr key={i}><td style={td}>{r.name}</td><td style={td}>{r.email}</td><td style={td}>{fmt(r.registered_at)}</td></tr>
+                    ))}
+                  </tbody>
+                </table>}
+            </div>
+          </div>
         </div>
       )}
 
