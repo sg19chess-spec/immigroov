@@ -20,6 +20,7 @@ export default function WebinarShare() {
   const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
   const [joined, setJoined] = useState<string | null>(null);
+  const [already, setAlready] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -38,6 +39,7 @@ export default function WebinarShare() {
     setBusy(false);
     if (error) { setErr(error.message); return; }
     setJoined((data as any)?.room_url || null);
+    setAlready(!!(data as any)?.already);
     load();
   }
 
@@ -58,8 +60,8 @@ export default function WebinarShare() {
 
         {joined ? (
           <div className="banner ok">
-            <b>You're registered!</b> <a href={joined} target="_blank" rel="noreferrer" style={{ fontWeight: 700 }}>Join link</a>.<br />
-            We've emailed your confirmation, and we'll remind you <b>1 day before</b> and <b>1 hour before</b> it starts.
+            <b>{already ? "You're already registered." : "You're registered!"}</b> <a href={joined} target="_blank" rel="noreferrer" style={{ fontWeight: 700 }}>Join link</a>.<br />
+            {already ? "We won't send a duplicate confirmation — your reminders are already set for 1 day and 1 hour before." : <>We've emailed your confirmation, and we'll remind you <b>1 day before</b> and <b>1 hour before</b> it starts.</>}
           </div>
         ) : closed ? (
           <div className="banner bad">Registration for this webinar is closed.</div>

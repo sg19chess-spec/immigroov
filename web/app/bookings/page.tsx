@@ -113,6 +113,7 @@ function Card({ b, tz, i, h, email, dim }: { b: B; tz: string; i: number; h: Han
   const [otherDate, setOtherDate] = useState("");
   const [picking, setPicking] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
+  const [acceptSlot, setAcceptSlot] = useState<string | null>(null);
   const active = !["cancelled", "completed", "no_show"].includes(b.status);
   const mentorOffer = active && b.offer_id && b.offer_by === "mentor" && b.offer_status === "pending" && b.range_start && b.range_end;
   const waitingMentor = active && b.offer_id && b.offer_by === "user" && b.offer_status === "pending";
@@ -158,13 +159,22 @@ function Card({ b, tz, i, h, email, dim }: { b: B; tz: string; i: number; h: Han
           <div className="muted" style={{ fontSize: 12.5, margin: "2px 0 8px" }}>{fmtDate(b.range_start!, tz)} · pick a slot ({tz}):</div>
           <div className="slotgrid">
             {slots.map((s) => (
-              <button key={s} className="slot" style={{ height: "auto", padding: "6px 4px", lineHeight: 1.25 }} onClick={() => h.accept(b.offer_id!, s)}>
+              <button key={s} className={`slot ${acceptSlot === s ? "sel" : ""}`} style={{ height: "auto", padding: "6px 4px", lineHeight: 1.25 }} onClick={() => setAcceptSlot(s)}>
                 <div style={{ fontWeight: 700 }}>{fmtTime(s, tz)}</div>
                 <div style={{ fontSize: 10, opacity: 0.7 }}>mentor {fmtTime(s, b.mentor_tz)}</div>
               </button>
             ))}
             {slots.length === 0 && <div className="faint" style={{ fontSize: 12.5 }}>No future slots in that window.</div>}
           </div>
+          {acceptSlot && (
+            <div style={{ marginTop: 10, padding: "10px 12px", background: "#fff", border: "1px solid var(--orange)", borderRadius: 10 }}>
+              <div style={{ fontSize: 13 }}>Confirm new time: <b>{fmtDate(acceptSlot, tz)} · {fmtTime(acceptSlot, tz)}</b> <span className="faint">({tz})</span></div>
+              <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                <button className="btn btn-cta btn-sm" onClick={() => h.accept(b.offer_id!, acceptSlot)}>Confirm</button>
+                <button className="btn-ghost btn-sm" onClick={() => setAcceptSlot(null)}>Back</button>
+              </div>
+            </div>
+          )}
           <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap", alignItems: "center" }}>
             <button className="btn-ghost btn-sm" style={{ color: "var(--bad)" }} onClick={() => h.reject(b.offer_id!)}>Reject (get credit)</button>
             <span className="faint" style={{ fontSize: 12 }}>· or another day:</span>
@@ -227,6 +237,7 @@ function RescheduleSlots({ b, tz, onPick, onClose }: { b: B; tz: string; onPick:
   const supabase = createClient();
   const [slots, setSlots] = useState<{ slot_start: string }[]>([]);
   const [date, setDate] = useState<string>("");
+  const [chosen, setChosen] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   useEffect(() => {
     (async () => {
@@ -245,18 +256,28 @@ function RescheduleSlots({ b, tz, onPick, onClose }: { b: B; tz: string; onPick:
       {loading ? <div className="faint" style={{ fontSize: 12.5 }}>Loading openings…</div>
         : dates.length === 0 ? <div className="faint" style={{ fontSize: 12.5 }}>No openings in the next 60 days.</div>
           : <>
-            <select value={date} onChange={(e) => setDate(e.target.value)} style={{ padding: "6px 8px", fontSize: 13, marginBottom: 8 }}>
+            <select value={date} onChange={(e) => { setDate(e.target.value); setChosen(null); }} style={{ padding: "6px 8px", fontSize: 13, marginBottom: 8 }}>
               <option value="">Select a date…</option>
               {dates.map((d) => <option key={d} value={d}>{fmtDate(d + "T12:00:00", tz)}</option>)}
             </select>
             {date && <div className="slotgrid">{day.map((s) => (
-              <button key={s.slot_start} className="slot" style={{ height: "auto", padding: "6px 4px", lineHeight: 1.25 }} onClick={() => onPick(s.slot_start)}>
+              <button key={s.slot_start} className={`slot ${chosen === s.slot_start ? "sel" : ""}`} style={{ height: "auto", padding: "6px 4px", lineHeight: 1.25 }} onClick={() => setChosen(s.slot_start)}>
                 <div style={{ fontWeight: 700 }}>{fmtTime(s.slot_start, tz)}</div>
                 <div style={{ fontSize: 10, opacity: 0.7 }}>mentor {fmtTime(s.slot_start, b.mentor_tz)}</div>
               </button>
             ))}</div>}
           </>}
-      <button className="btn-ghost btn-sm" style={{ marginTop: 8 }} onClick={onClose}>Close</button>
+      {chosen ? (
+        <div style={{ marginTop: 12, padding: "10px 12px", background: "var(--orange-soft)", border: "1px solid var(--orange)", borderRadius: 10 }}>
+          <div style={{ fontSize: 13 }}>Move this session to <b>{fmtDate(chosen, tz)} · {fmtTime(chosen, tz)}</b> <span className="faint">({tz})</span>?</div>
+          <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+            <button className="btn btn-cta btn-sm" onClick={() => onPick(chosen)}>Confirm reschedule</button>
+            <button className="btn-ghost btn-sm" onClick={() => setChosen(null)}>Back</button>
+          </div>
+        </div>
+      ) : (
+        <button className="btn-ghost btn-sm" style={{ marginTop: 8 }} onClick={onClose}>Close</button>
+      )}
     </div>
   );
 }

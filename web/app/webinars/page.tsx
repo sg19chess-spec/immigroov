@@ -48,6 +48,7 @@ function Card({ w, onChange }: { w: Webinar; onChange: () => void }) {
   const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
   const [joined, setJoined] = useState<string | null>(null);
+  const [already, setAlready] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   useEffect(() => { setEmail(getEmail() || ""); }, []);
@@ -59,7 +60,7 @@ function Card({ w, onChange }: { w: Webinar; onChange: () => void }) {
     const { data, error } = await supabase.rpc("register_webinar", { p_webinar_id: w.id, p_email: email.trim(), p_name: name || null });
     setBusy(false);
     if (error) { setErr(error.message); return; }
-    setJoined((data as any)?.room_url || null); onChange();
+    setJoined((data as any)?.room_url || null); setAlready(!!(data as any)?.already); onChange();
   }
 
   return (
@@ -79,7 +80,7 @@ function Card({ w, onChange }: { w: Webinar; onChange: () => void }) {
 
       <div style={{ marginTop: "auto", borderTop: "1px solid var(--line)", padding: 14 }}>
         {joined ? (
-          <div className="banner ok" style={{ margin: 0 }}>You're in! <a href={joined} target="_blank" rel="noreferrer" style={{ fontWeight: 700 }}>Join link</a> — emailed, with reminders 1 day & 1 hour before.</div>
+          <div className="banner ok" style={{ margin: 0 }}>{already ? "Already registered." : "You're in!"} <a href={joined} target="_blank" rel="noreferrer" style={{ fontWeight: 700 }}>Join link</a>{already ? " — reminders already set." : " — emailed, with reminders 1 day & 1 hour before."}</div>
         ) : full ? (
           <div className="banner bad" style={{ margin: 0 }}>This webinar is full.</div>
         ) : !open ? (
