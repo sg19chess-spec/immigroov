@@ -6,7 +6,7 @@ type Msg = { id: number; sender_role: string; body: string; created_at: string; 
 
 // Masked in-app chat for one booking. Polls every 4s (Realtime can replace this once the app
 // moves to Supabase Auth). Identity is the caller's email; the server checks participation.
-export default function ChatThread({ bookingId, email }: { bookingId: number; email: string }) {
+export default function ChatThread({ bookingId, email, height = 240 }: { bookingId: number; email: string; height?: number }) {
   const supabase = createClient();
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [text, setText] = useState("");
@@ -33,7 +33,7 @@ export default function ChatThread({ bookingId, email }: { bookingId: number; em
 
   return (
     <div style={{ border: "1px solid var(--line)", borderRadius: "var(--r-md)", overflow: "hidden", marginTop: 10 }}>
-      <div ref={boxRef} style={{ maxHeight: 240, overflowY: "auto", padding: 12, display: "flex", flexDirection: "column", gap: 8, background: "var(--surface-2)" }}>
+      <div ref={boxRef} style={{ height, overflowY: "auto", padding: 12, display: "flex", flexDirection: "column", gap: 8, background: "var(--surface-2)" }}>
         {msgs.length === 0 && <div className="faint" style={{ fontSize: 12.5, textAlign: "center", padding: 12 }}>No messages yet. Say hello — contact details are hidden automatically.</div>}
         {msgs.map((m) => (
           <div key={m.id} style={{ alignSelf: m.mine ? "flex-end" : "flex-start", maxWidth: "78%" }}>

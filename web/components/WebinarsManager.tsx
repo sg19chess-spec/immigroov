@@ -16,6 +16,13 @@ export default function WebinarsManager({ mentorId }: { mentorId: number }) {
   const [msg, setMsg] = useState<{ t: string; ok: boolean } | null>(null);
   const [regsFor, setRegsFor] = useState<number | null>(null);
   const [regs, setRegs] = useState<{ name: string; email: string; registered_at: string }[]>([]);
+  const [copied, setCopied] = useState<number | null>(null);
+
+  async function copyShare(id: number) {
+    const url = `${window.location.origin}/webinars/${id}`;
+    try { await navigator.clipboard.writeText(url); } catch { /* clipboard may be blocked */ }
+    setCopied(id); setTimeout(() => setCopied((c) => (c === id ? null : c)), 1800);
+  }
 
   async function toggleRegs(id: number) {
     if (regsFor === id) { setRegsFor(null); return; }
@@ -82,7 +89,12 @@ export default function WebinarsManager({ mentorId }: { mentorId: number }) {
                     {regsFor === w.id ? "Hide" : "View"} registrants ({w.registrations}{w.capacity != null ? ` / ${w.capacity}` : ""})
                   </button>
                 </div>
-                {w.room_url && <a href={w.room_url} target="_blank" rel="noreferrer" style={{ fontSize: 12.5, fontWeight: 700 }}>Join link</a>}
+                <div style={{ display: "flex", gap: 12, alignItems: "center", marginTop: 2 }}>
+                  {w.room_url && <a href={w.room_url} target="_blank" rel="noreferrer" style={{ fontSize: 12.5, fontWeight: 700 }}>Join link</a>}
+                  <button className="btn-ghost btn-sm" style={{ padding: "2px 8px" }} onClick={() => copyShare(w.id)}>
+                    {copied === w.id ? "✓ Link copied" : "Copy share link"}
+                  </button>
+                </div>
                 {regsFor === w.id && (
                   <div style={{ marginTop: 8, border: "1px solid var(--line)", borderRadius: 8, padding: 10, fontSize: 12.5 }}>
                     {regs.length === 0 ? <span className="faint">No registrants yet.</span> :
