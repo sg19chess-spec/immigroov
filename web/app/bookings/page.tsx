@@ -4,6 +4,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { money, myTz, fmtTime, fmtDate } from "@/lib/format";
 import { getEmail } from "@/lib/identity";
+import ChatThread from "@/components/ChatThread";
 
 type B = {
   id: number; status: string; slot_time: string; meeting_url: string | null;
@@ -90,9 +91,9 @@ export default function Bookings() {
       {email && rows.length === 0 && <div className="empty"><div className="ico">📅</div>No bookings under {email} yet.<br /><Link href="/" className="btn btn-cta" style={{ marginTop: 14 }}>Find a mentor</Link></div>}
 
       {upcoming.length > 0 && <h3 style={{ fontSize: 15, color: "var(--muted)", margin: "8px 0 14px" }}>Upcoming</h3>}
-      <div className="grid">{upcoming.map((b, i) => <Card key={b.id} b={b} tz={tz} i={i} h={h} />)}</div>
+      <div className="grid">{upcoming.map((b, i) => <Card key={b.id} b={b} tz={tz} i={i} h={h} email={email || ""} />)}</div>
       {past.length > 0 && <h3 style={{ fontSize: 15, color: "var(--muted)", margin: "30px 0 14px" }}>Past &amp; cancelled</h3>}
-      <div className="grid">{past.map((b, i) => <Card key={b.id} b={b} tz={tz} i={i} h={h} dim />)}</div>
+      <div className="grid">{past.map((b, i) => <Card key={b.id} b={b} tz={tz} i={i} h={h} email={email || ""} dim />)}</div>
     </div>
   );
 }
@@ -103,9 +104,10 @@ type Handlers = {
   flagNoShow: (id: number) => void; resolveMentorNoShow: (id: number, choice: string) => void;
 };
 
-function Card({ b, tz, i, h, dim }: { b: B; tz: string; i: number; h: Handlers; dim?: boolean }) {
+function Card({ b, tz, i, h, email, dim }: { b: B; tz: string; i: number; h: Handlers; email: string; dim?: boolean }) {
   const [otherDate, setOtherDate] = useState("");
   const [picking, setPicking] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
   const active = !["cancelled", "completed", "no_show"].includes(b.status);
   const mentorOffer = active && b.offer_id && b.offer_by === "mentor" && b.offer_status === "pending" && b.range_start && b.range_end;
   const waitingMentor = active && b.offer_id && b.offer_by === "user" && b.offer_status === "pending";
@@ -198,7 +200,9 @@ function Card({ b, tz, i, h, dim }: { b: B; tz: string; i: number; h: Handlers; 
         {active && !busy && !canReport && <button className="btn-ghost" onClick={() => h.cancel(b)}>Cancel</button>}
         {canReport && !busy && <button className="btn-ghost" style={{ color: "var(--bad)" }} onClick={() => h.flagNoShow(b.id)}>Mentor didn't show</button>}
         {!active && !mentorNoShowOpen && !customerNoShow && !b.ledger_summary && <span className="faint" style={{ fontSize: 13, padding: "6px 0" }}>No actions available</span>}
+        {email && <button className="btn-ghost" onClick={() => setChatOpen((v) => !v)}>{chatOpen ? "Hide chat" : "💬 Message mentor"}</button>}
       </div>
+      {chatOpen && email && <div style={{ padding: "0 16px 16px" }}><ChatThread bookingId={b.id} email={email} /></div>}
     </div>
   );
 }

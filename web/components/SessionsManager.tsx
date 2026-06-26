@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { fmtDate, fmtTime } from "@/lib/format";
+import ChatThread from "@/components/ChatThread";
 
 type S = {
   id: number; status: string; slot_time: string; meeting_url: string | null;
@@ -33,6 +34,13 @@ export default function SessionsManager({ mentorId, mentorTz }: { mentorId: numb
   const [strikes, setStrikes] = useState(0);
   const [msg, setMsg] = useState<string | null>(null);
   const [proposing, setProposing] = useState<number | null>(null);
+  const [mentorEmail, setMentorEmail] = useState("");
+  const [chatId, setChatId] = useState<number | null>(null);
+
+  useEffect(() => {
+    supabase.rpc("demo_mentor_email", { p_mentor_id: mentorId }).then(({ data }) => setMentorEmail((data as string) || ""));
+    setChatId(null);
+  }, [mentorId, supabase]);
 
   const load = useCallback(async () => {
     const [{ data }, { data: m }] = await Promise.all([
@@ -149,6 +157,17 @@ export default function SessionsManager({ mentorId, mentorTz }: { mentorId: numb
         {proposing === b.id && !menteeAskedDate && (
           <ProposeForm tz={mentorTz} defaultDate={b.slot_time.slice(0, 10)} onCancel={() => setProposing(null)} onSend={(d, s, e) => propose(b.id, d, s, e)} />
         )}
+        {chatBlock(b)}
+      </div>
+    );
+  }
+
+  function chatBlock(b: S) {
+    if (!mentorEmail) return null;
+    return (
+      <div style={{ marginTop: 10 }}>
+        <button className="btn-ghost btn-sm" onClick={() => setChatId(chatId === b.id ? null : b.id)}>{chatId === b.id ? "Hide chat" : "💬 Message mentee"}</button>
+        {chatId === b.id && <ChatThread bookingId={b.id} email={mentorEmail} />}
       </div>
     );
   }
@@ -181,6 +200,7 @@ export default function SessionsManager({ mentorId, mentorTz }: { mentorId: numb
           </div>
         )}
         {mentorNoShow && <div className="banner" style={{ background: "var(--navy-soft)", border: "1px solid var(--line)", marginTop: 8, fontSize: 12.5 }}>You were marked as a no-show — the customer chooses how to proceed.</div>}
+        {chatBlock(b)}
       </div>
     );
   }

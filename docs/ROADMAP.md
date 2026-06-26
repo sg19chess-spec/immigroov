@@ -43,8 +43,18 @@ constraint, payouts, reschedule/no-show machinery are all 1:1-specific and would
   pg_cron reminder infra for "starts soon" emails. Payment-free for MVP.
 - Effort: **small–medium.** Scaffold model + 3 RPCs + a public webinars page + mentor create form.
 
-## 4. In-app chat (assessment first)
-**Feasibility: YES with the current stack; no chat SaaS needed.**
+## 4. In-app chat (assessment first) — ☑ MVP BUILT (`0056`/`0057`)
+Built: `messages` table **RLS-locked with no policies** (only reachable via participant-checked
+SECURITY DEFINER RPCs — strong masking, since the app has no Supabase Auth). `redact_contact()`
+strips emails/phones/URLs; `chat_role` / `send_message` (redacts + gates) / `list_messages`
+(gates + marks read). Offline → `notify_unread_messages()` cron (every 5 min, emails the recipient
+a link only, never content). UI: `ChatThread` (4s polling) wired into the mentee bookings page
+("Message mentor") and mentor console ("Message mentee", via `demo_mentor_email`).
+Verified (rolled back): redaction (`john@x.com`/phone/URL → hidden), non-participant blocked,
+threading with correct `mine` flags. **Realtime upgrade** needs Supabase Auth for RLS scoping;
+**WhatsApp bridge** still deferred. RPCs ungated (demo) — gate before prod.
+
+**Feasibility (original): YES with the current stack; no chat SaaS needed.**
 - **Realtime:** use **Supabase Realtime** (already available) + a `messages` table
   (booking_id/thread, sender, body, read_at) with RLS limiting rows to the two parties. Live chat,
   no third party.
