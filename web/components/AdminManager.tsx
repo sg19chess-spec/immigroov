@@ -149,7 +149,7 @@ export default function AdminManager() {
                   <div><span className="faint">Session</span><br />{fmtZ(detail.booking.slot_time, detail.booking.mentee_tz)} <span className="faint">({detail.booking.mentee_tz})</span></div>
                   <div><span className="faint">Mentor</span><br />{detail.booking.mentor} <span className="faint">({detail.booking.mentor_tz})</span></div>
                   <div><span className="faint">Mentee</span><br />{detail.booking.mentee}</div>
-                  <div><span className="faint">Booked</span><br />{fmt(detail.booking.created_at)}</div>
+                  <div><span className="faint">Booked</span><br />{fmtZ(detail.booking.created_at, detail.booking.mentee_tz)} <span className="faint">({detail.booking.mentee_tz})</span></div>
                   <div><span className="faint">Reschedules</span><br />{detail.booking.reschedule_count} of 2</div>
                 </div>
 
@@ -164,7 +164,8 @@ export default function AdminManager() {
                   {detail.totals?.mentor_credit > 0 && <Money label="Mentor credit" v={detail.totals.mentor_credit} c={detail.payout?.currency} tone="#0f7a44" />}
                 </div>
 
-                <div className="faint" style={{ fontSize: 11.5, textTransform: "uppercase", letterSpacing: ".04em", marginBottom: 10 }}>History</div>
+                <div className="faint" style={{ fontSize: 11.5, textTransform: "uppercase", letterSpacing: ".04em", marginBottom: 2 }}>History</div>
+                <div className="faint" style={{ fontSize: 11, marginBottom: 10 }}>Times shown in {detail.booking.mentee_tz}</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
                   {(detail.timeline || []).map((e: any, i: number) => (
                     <div key={i} style={{ display: "flex", gap: 12, paddingBottom: 14, position: "relative" }}>
@@ -173,7 +174,7 @@ export default function AdminManager() {
                         {i < detail.timeline.length - 1 && <span style={{ flex: 1, width: 1.5, background: "var(--line)", marginTop: 3 }} />}
                       </div>
                       <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 11, color: "var(--muted)" }}>{fmt(e.at)} · <span style={{ textTransform: "capitalize" }}>{e.actor}</span></div>
+                        <div style={{ fontSize: 11, color: "var(--muted)" }}>{fmtZ(e.at, detail.booking.mentee_tz)} · <span style={{ textTransform: "capitalize" }}>{e.actor}</span></div>
                         <div style={{ fontSize: 13.5, fontWeight: 700 }}>{e.title}</div>
                         {e.detail && <div style={{ fontSize: 12.5, color: "var(--muted)" }}>{e.detail}</div>}
                       </div>
