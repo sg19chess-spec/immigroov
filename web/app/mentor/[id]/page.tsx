@@ -2,7 +2,7 @@
 import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { money, fx, myTz, fmtTime, fmtDate } from "@/lib/format";
+import { money, myTz, fmtTime, fmtDate } from "@/lib/format";
 import { getEmail, setEmail as saveEmail } from "@/lib/identity";
 import { effectivePpp, setCountry as saveCountry, pppFactor, currencyForCountry } from "@/lib/ppp";
 import Calendar from "@/components/Calendar";
@@ -62,23 +62,22 @@ export default function MentorPage({ params }: { params: { id: string } }) {
     })();
   }, [supabase, mentorId]);
 
-  // recompute prices whenever services, PPP factor, or currency change
+  // Display prices come from the SERVER pricing engine (convert_prices). PPP + FX
+  // are applied server-side; the client never computes money. The customer pays the
+  // mentor's set_price (the gross) — the platform commission is deducted from the
+  // mentor's payout server-side, NOT added on top of what the customer sees.
   useEffect(() => {
     (async () => {
-      const out: Service[] = [];
-      for (const s of servicesRaw) {
-        // The customer pays the mentor's set_price (the gross). The platform commission
-        // (services.platform_fee = a %) is deducted from the mentor's payout server-side,
-        // NOT added on top of what the customer sees.
-        const base = Number(s.set_price) || 0;
-        const eff = s.is_ppp ? base * factor : base;
-        const f = await fx(s.set_currency || "USD", mc);
-        out.push({ ...s, base, you: eff * f.rate, you0: base * f.rate });
-      }
+      if (!servicesRaw.length) { setPriced([]); return; }
+      const items = servicesRaw.map((s) => ({ key: String(s.id), amount: Number(s.set_price) || 0, from: s.set_currency || "USD", is_ppp: !!s.is_ppp }));
+      const { data } = await supabase.rpc("convert_prices", { p_customer_country: country, p_items: items });
+      const byKey: Record<string, { you: number; you0: number }> = {};
+      (data || []).forEach((r: { key: string; you: number; you0: number }) => { byKey[String(r.key)] = { you: Number(r.you), you0: Number(r.you0) }; });
+      const out = servicesRaw.map((s) => ({ ...s, base: Number(s.set_price) || 0, you: byKey[String(s.id)]?.you, you0: byKey[String(s.id)]?.you0 }));
       setPriced(out);
       setSvc((cur) => (cur ? out.find((x) => x.id === cur.id) || null : null));
     })();
-  }, [servicesRaw, factor, mc]);
+  }, [servicesRaw, country, supabase]);
 
   async function changeCountry(cc: string) {
     if (cc !== detected) {
@@ -111,21 +110,27 @@ export default function MentorPage({ params }: { params: { id: string } }) {
     if (!email.includes("@")) { setMsg({ t: "Please enter a valid email so we can send your confirmation.", ok: false }); return; }
     setBusy(true); setMsg(null);
     const ans = questions.map((q) => ({ question_id: q.id, answer_text: answers[q.id] || "" }));
-    // FX context so the server can compute the authoritative payout + normalize money to INR.
-    const mentorCcy = svc.set_currency || "USD";
-    const [fxMC, fxCInr, fxMInr] = await Promise.all([fx(mentorCcy, mc), fx(mc, "INR"), fx(mentorCcy, "INR")]);
-    const { error } = await supabase.rpc("book_session_guest", {
-      p_mentor_id: mentorId, p_service_id: svc.id, p_slot_time: slot, p_mentee_currency: mc,
-      p_mentee_cost: svc.you, p_email: email, p_name: guest.name || null, p_timezone: tz,
-      p_answers: ans, p_ppp_factor: svc.is_ppp ? factor : 1.0,
-      p_customer_country: COUNTRIES.find(([c]) => c === country)?.[1] || country || null,
-      p_fx_mentor_customer: fxMC.rate, p_fx_customer_inr: fxCInr.rate, p_fx_mentor_inr: fxMInr.rate,
-    });
-    setBusy(false);
-    if (error) { setMsg({ t: error.message, ok: false }); return; }
-    if (!myEmail) { saveEmail(email); setMyEmail(email); }
-    setBooked({ when: `${fmtDate(slot, tz)}, ${fmtTime(slot, tz)}`, email });
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    // Server prices the booking: fetch a fresh binding quote, then commit it by id.
+    // The client sends NO money/FX/PPP values — the server is the source of truth.
+    const doBook = async () => {
+      const { data: quote, error: qErr } = await supabase.rpc("get_booking_quote", { p_service_id: svc.id, p_customer_country: country });
+      if (qErr) throw qErr;
+      const { error } = await supabase.rpc("book_session_guest", {
+        p_quote_id: (quote as { quote_id: string }).quote_id, p_mentor_id: mentorId, p_service_id: svc.id,
+        p_slot_time: slot, p_email: email, p_name: guest.name || null, p_timezone: tz, p_answers: ans,
+      });
+      if (error) throw error;
+    };
+    try {
+      try { await doBook(); }
+      catch (e) { if (String((e as Error)?.message || e).includes("QUOTE_EXPIRED")) await doBook(); else throw e; } // re-quote once
+      if (!myEmail) { saveEmail(email); setMyEmail(email); }
+      setBooked({ when: `${fmtDate(slot, tz)}, ${fmtTime(slot, tz)}`, email });
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } catch (e) {
+      const m = String((e as Error)?.message || e);
+      setMsg({ t: m.includes("FX_UNAVAILABLE") ? "We couldn't fetch live exchange rates just now — please try again in a moment." : m, ok: false });
+    } finally { setBusy(false); }
   }
 
   return (

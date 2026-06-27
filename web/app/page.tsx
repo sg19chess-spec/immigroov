@@ -2,7 +2,7 @@
 import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { money, fx } from "@/lib/format";
+import { money } from "@/lib/format";
 import { effectivePpp } from "@/lib/ppp";
 
 type Mentor = {
@@ -37,18 +37,22 @@ export default function Home() {
     })();
   }, [supabase]);
 
-  // price = mentor base -> visitor currency, x PPP factor when the service is PPP-enabled
+  // Display prices via the SERVER pricing engine (convert_prices): mentor base ->
+  // visitor currency, with PPP applied server-side. The client computes no money.
   useEffect(() => {
     (async () => {
-      const out: Mentor[] = [];
-      for (const m of raw) {
-        const f = await fx(m.currency || "USD", mc);
-        const base = m.min_price != null ? m.min_price * f.rate : undefined;
-        out.push({ ...m, you0: base, you: base != null ? (m.ppp ? base * factor : base) : undefined });
-      }
-      setPriced(out);
+      if (!raw.length) { setPriced([]); return; }
+      const items = raw.map((m) => ({ key: String(m.mentor_id), amount: m.min_price ?? 0, from: m.currency || "USD", is_ppp: !!m.ppp }));
+      const { data } = await supabase.rpc("convert_prices", { p_customer_country: country, p_items: items });
+      const byKey: Record<string, { you: number; you0: number }> = {};
+      (data || []).forEach((r: { key: string; you: number; you0: number }) => { byKey[String(r.key)] = { you: Number(r.you), you0: Number(r.you0) }; });
+      setPriced(raw.map((m) => ({
+        ...m,
+        you0: m.min_price != null ? byKey[String(m.mentor_id)]?.you0 : undefined,
+        you: m.min_price != null ? byKey[String(m.mentor_id)]?.you : undefined,
+      })));
     })();
-  }, [raw, mc, factor]);
+  }, [raw, country, supabase]);
 
   const specs = useMemo(() => {
     const s = new Set<string>(); priced.forEach((m) => (m.specializations || []).forEach((x) => s.add(x)));

@@ -13,21 +13,9 @@ export const guessCurrency = () => {
 
 export const myTz = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-const fxCache: Record<string, { rate: number; date: string | null }> = {};
-export async function fx(from: string, to: string) {
-  if (!from || !to || from === to) return { rate: 1, date: null };
-  const k = `${from}>${to}`;
-  if (fxCache[k]) return fxCache[k];
-  try {
-    const res = await fetch(`https://api.frankfurter.dev/v2/rates?base=${from}&quotes=${to}`);
-    const j = await res.json();
-    const row = Array.isArray(j) ? j.find((x: any) => x.quote === to) : null;
-    fxCache[k] = { rate: row ? row.rate : 1, date: row ? row.date : null };
-  } catch {
-    fxCache[k] = { rate: 1, date: null };
-  }
-  return fxCache[k];
-}
+// NOTE: currency conversion is now done SERVER-SIDE (convert_prices / the pricing
+// engine in migration 0065). The old client-side fx() — which silently fell back to
+// rate=1 on any network error and could mis-price by ~80x — has been removed.
 
 export const fmtTime = (iso: string, tz: string) =>
   new Intl.DateTimeFormat("en", { timeZone: tz, hour: "2-digit", minute: "2-digit", hour12: true }).format(new Date(iso));
