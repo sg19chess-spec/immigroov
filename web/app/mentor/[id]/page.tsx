@@ -67,7 +67,10 @@ export default function MentorPage({ params }: { params: { id: string } }) {
     (async () => {
       const out: Service[] = [];
       for (const s of servicesRaw) {
-        const base = (Number(s.set_price) || 0) + (Number(s.platform_fee) || 0);
+        // The customer pays the mentor's set_price (the gross). The platform commission
+        // (services.platform_fee = a %) is deducted from the mentor's payout server-side,
+        // NOT added on top of what the customer sees.
+        const base = Number(s.set_price) || 0;
         const eff = s.is_ppp ? base * factor : base;
         const f = await fx(s.set_currency || "USD", mc);
         out.push({ ...s, base, you: eff * f.rate, you0: base * f.rate });
@@ -108,11 +111,15 @@ export default function MentorPage({ params }: { params: { id: string } }) {
     if (!email.includes("@")) { setMsg({ t: "Please enter a valid email so we can send your confirmation.", ok: false }); return; }
     setBusy(true); setMsg(null);
     const ans = questions.map((q) => ({ question_id: q.id, answer_text: answers[q.id] || "" }));
+    // FX context so the server can compute the authoritative payout + normalize money to INR.
+    const mentorCcy = svc.set_currency || "USD";
+    const [fxMC, fxCInr, fxMInr] = await Promise.all([fx(mentorCcy, mc), fx(mc, "INR"), fx(mentorCcy, "INR")]);
     const { error } = await supabase.rpc("book_session_guest", {
       p_mentor_id: mentorId, p_service_id: svc.id, p_slot_time: slot, p_mentee_currency: mc,
       p_mentee_cost: svc.you, p_email: email, p_name: guest.name || null, p_timezone: tz,
       p_answers: ans, p_ppp_factor: svc.is_ppp ? factor : 1.0,
       p_customer_country: COUNTRIES.find(([c]) => c === country)?.[1] || country || null,
+      p_fx_mentor_customer: fxMC.rate, p_fx_customer_inr: fxCInr.rate, p_fx_mentor_inr: fxMInr.rate,
     });
     setBusy(false);
     if (error) { setMsg({ t: error.message, ok: false }); return; }

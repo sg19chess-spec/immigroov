@@ -16,7 +16,7 @@ type Payout = {
 };
 type Ledger = {
   id: number; created_at: string; booking_id: number; party: string; kind: string; pct: number | null;
-  amount: number | null; currency: string | null; reason: string;
+  amount: number | null; currency: string | null; normalized_inr: number | null; reason: string;
   service_title: string; mentor_name: string; mentee_email: string; booking_status: string;
 };
 
@@ -77,8 +77,9 @@ export default function AdminManager() {
   useEffect(() => { load(); }, [load]);
 
   const by = (s: string) => bookings.filter((x) => x.status === s).length;
-  const sum = (k: string) => ledger.filter((x) => x.kind === k).reduce((a, x) => a + Number(x.amount || 0), 0);
-  const cur = ledger[0]?.currency || "USD";
+  // Money totals are normalized to INR (mixed-currency-safe).
+  const sum = (k: string) => ledger.filter((x) => x.kind === k).reduce((a, x) => a + Number(x.normalized_inr || 0), 0);
+  const cur = "INR";
 
   const statuses = ["confirmed", "rescheduled", "completed", "cancelled", "no_show"];
   const countries = Array.from(new Set(bookings.map((b) => b.target_country).filter(Boolean))) as string[];
