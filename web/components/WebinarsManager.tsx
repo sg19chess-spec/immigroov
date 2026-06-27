@@ -60,14 +60,14 @@ export default function WebinarsManager({ mentorId }: { mentorId: number }) {
     <div>
       <div className="card" style={{ padding: 18, marginBottom: 20 }}>
         <div style={{ fontWeight: 800, marginBottom: 12 }}>New webinar</div>
-        <div style={{ display: "grid", gap: 10, gridTemplateColumns: "1fr 1fr" }}>
-          <input placeholder="Title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} style={{ gridColumn: "1 / -1" }} />
-          <textarea placeholder="Description (optional)" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} style={{ gridColumn: "1 / -1", minHeight: 60 }} />
-          <label className="fld">Start<input type="datetime-local" value={form.start} onChange={(e) => setForm({ ...form, start: e.target.value })} /></label>
-          <label className="fld">Duration (min)<input type="number" value={form.duration} onChange={(e) => setForm({ ...form, duration: Number(e.target.value) })} /></label>
-          <label className="fld">Capacity (blank = unlimited)<input type="number" value={form.capacity} onChange={(e) => setForm({ ...form, capacity: e.target.value })} /></label>
+        <div className="form-grid">
+          <input className="span2" placeholder="Title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} style={{ width: "100%" }} />
+          <textarea className="span2" placeholder="Description (optional)" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} style={{ width: "100%", minHeight: 60 }} />
+          <label className="fld">Start<input type="datetime-local" value={form.start} onChange={(e) => setForm({ ...form, start: e.target.value })} style={{ width: "100%" }} /></label>
+          <label className="fld">Duration (min)<input type="number" value={form.duration} onChange={(e) => setForm({ ...form, duration: Number(e.target.value) })} style={{ width: "100%" }} /></label>
+          <label className="fld">Capacity (blank = unlimited)<input type="number" value={form.capacity} onChange={(e) => setForm({ ...form, capacity: e.target.value })} style={{ width: "100%" }} /></label>
           <label className="fld">Visibility
-            <select value={form.visibility} onChange={(e) => setForm({ ...form, visibility: e.target.value })}>
+            <select value={form.visibility} onChange={(e) => setForm({ ...form, visibility: e.target.value })} style={{ width: "100%" }}>
               <option value="public">Public (listed)</option>
               <option value="invite">Invite-only (link only)</option>
             </select>

@@ -102,6 +102,7 @@ button:disabled, .btn:disabled { opacity: .4; cursor: not-allowed; box-shadow: n
 input, select, textarea {
   font: inherit; background: #fff; border: 1px solid var(--line); border-radius: 11px;
   padding: 11px 13px; font-size: 14px; color: var(--ink); transition: border-color .15s, box-shadow .15s;
+  max-width: 100%;
 }
 input:focus, select:focus, textarea:focus { outline: none; border-color: var(--orange); box-shadow: 0 0 0 3px rgba(251,115,33,.14); }
 label.fld { display: block; font-size: 12.5px; color: var(--muted); font-weight: 700; margin-bottom: 6px; }
@@ -174,6 +175,7 @@ label.fld { display: block; font-size: 12.5px; color: var(--muted); font-weight:
 
 /* ---- mentor dashboard / responsive helpers ---- */
 .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+.form-grid > * { min-width: 0; }
 .form-grid .span2 { grid-column: 1 / -1; }
 .row-between { display: flex; justify-content: space-between; gap: 12px; align-items: center; flex-wrap: wrap; }
 .actions { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -195,7 +197,9 @@ label.fld { display: block; font-size: 12.5px; color: var(--muted); font-weight:
   .card { padding: 18px; border-radius: 16px; }
   .section-head { margin: 24px 0 14px; }
   h2.sec { font-size: 21px; }
-  .seg { display: flex; width: 100%; } .seg button { flex: 1; }
+  .seg { display: flex; width: 100%; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+  .seg::-webkit-scrollbar { display: none; }
+  .seg button { flex: 1 0 auto; white-space: nowrap; }
   .stack-sm { flex-direction: column !important; align-items: stretch !important; }
   .full-sm { width: 100% !important; }
   .list-row .actions { width: 100%; flex-wrap: wrap; } .list-row .actions .btn-ghost, .list-row .actions button, .list-row .actions a { flex: 1; }
