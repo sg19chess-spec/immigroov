@@ -28,28 +28,26 @@ export default function MentorEarnings({ mentorId }: { mentorId: number }) {
   }, [supabase, mentorId]);
   useEffect(() => { load(); }, [load]);
 
-  const netOf = (r: E) => Number(r.net_inr || 0) - Number(r.penalty_inr || 0);
-  const totalNet = rows.reduce((a, r) => a + netOf(r), 0);
-  const pending = rows.filter((r) => r.payout_status !== "paid").reduce((a, r) => a + netOf(r), 0);
-  const paid = rows.filter((r) => r.payout_status === "paid").reduce((a, r) => a + netOf(r), 0);
-  const feesInr = rows.reduce((a, r) => {
-    const fx = r.net_amount_customer_currency ? Number(r.net_inr || 0) / Number(r.net_amount_customer_currency) : 1;
-    return a + Number(r.platform_fee_amount || 0) * (fx || 1);
-  }, 0);
+  // Mentor earnings are exact in the mentor's own currency (one per mentor).
+  const mCcy = rows.find((r) => r.mentor_currency)?.mentor_currency || "EUR";
+  const netM = (r: E) => Number(r.net_amount_mentor_currency || 0);
+  const totalNet = rows.reduce((a, r) => a + netM(r), 0);
+  const pending = rows.filter((r) => r.payout_status !== "paid").reduce((a, r) => a + netM(r), 0);
+  const paid = rows.filter((r) => r.payout_status === "paid").reduce((a, r) => a + netM(r), 0);
 
   if (loading) return <div className="empty">Loading earnings…</div>;
 
   return (
     <div className="reveal">
       <div className="stats" style={{ marginBottom: 18 }}>
-        <div className="stat"><div className="n" style={{ color: "var(--ok)", fontSize: 22 }}>{inr(totalNet)}</div><div className="l">Your net earnings (≈INR)</div></div>
-        <div className="stat"><div className="n" style={{ fontSize: 22 }}>{inr(pending)}</div><div className="l">Pending payout</div></div>
-        <div className="stat"><div className="n" style={{ fontSize: 22, color: "var(--navy2)" }}>{inr(paid)}</div><div className="l">Paid out</div></div>
-        <div className="stat"><div className="n" style={{ fontSize: 22, color: "#a32020" }}>{inr(feesInr)}</div><div className="l">Platform fees</div></div>
+        <div className="stat"><div className="n" style={{ color: "var(--ok)", fontSize: 22 }}>{money(totalNet, mCcy)}</div><div className="l">Your net earnings</div></div>
+        <div className="stat"><div className="n" style={{ fontSize: 22, color: "var(--amber)" }}>{money(pending, mCcy)}</div><div className="l">Pending payout</div></div>
+        <div className="stat"><div className="n" style={{ fontSize: 22, color: "var(--navy2)" }}>{money(paid, mCcy)}</div><div className="l">Paid out</div></div>
+        <div className="stat"><div className="n" style={{ fontSize: 22 }}>{rows.length}</div><div className="l">Sessions</div></div>
       </div>
 
       <div className="banner" style={{ background: "var(--navy-soft)", border: "1px solid var(--line)", fontSize: 12.5 }}>
-        You receive the session price minus Immigroov's commission. Amounts are shown in your currency and approximate INR. Payments are not live yet.
+        You receive the session price minus Immigroov's commission, paid in your currency ({mCcy}). Payments are not live yet.
       </div>
 
       {rows.length === 0 ? <div className="empty">No earnings yet.</div> :
@@ -80,8 +78,9 @@ export default function MentorEarnings({ mentorId }: { mentorId: number }) {
                   </div>
                   <div style={{ padding: "10px 14px" }}>
                     <div className="faint" style={{ fontSize: 11 }}>Your net</div>
-                    <b style={{ color: "var(--ok)" }}>{r.net_amount_mentor_currency != null ? money(r.net_amount_mentor_currency, mCcy) : "—"}</b>
-                    <div className="faint" style={{ fontSize: 11 }}>≈ {inr(Number(r.net_inr || 0))}</div>
+                    <b style={{ color: "var(--ok)" }}>{r.net_amount_mentor_currency != null ? money(r.net_amount_mentor_currency, r.mentor_currency || mCcy) : "—"}</b>
+                    {r.net_amount_customer_currency != null && (r.customer_currency !== (r.mentor_currency || mCcy)) &&
+                      <div className="faint" style={{ fontSize: 11 }}>= {money(r.net_amount_customer_currency, r.customer_currency || "INR")}</div>}
                   </div>
                 </div>
 
