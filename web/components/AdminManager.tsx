@@ -12,7 +12,9 @@ type Payout = {
   booking_id: number; created_at: string; status: string; slot_time: string;
   service_title: string; mentor_name: string; mentee_email: string;
   gross: number | null; currency: string | null; fee_pct: number | null;
-  deduction: number | null; net_payout: number | null; payout_status: string;
+  deduction: number | null; net_payout: number | null;
+  mentor_net: number | null; mentor_currency: string | null; fx_rate: number | null; ppp: number | null;
+  payout_status: string;
 };
 type Ledger = {
   id: number; created_at: string; booking_id: number; party: string; kind: string; pct: number | null;
@@ -48,6 +50,15 @@ export default function AdminManager() {
   const [detailId, setDetailId] = useState<number | null>(null);
   const [regs, setRegs] = useState<{ title: string; rows: any[] } | null>(null);
   const [f, setF] = useState({ mentor: "", custEmail: "", mentorEmail: "", from: "", to: "", status: "", country: "" });
+  const [feeDraft, setFeeDraft] = useState("");
+  const [feeMsg, setFeeMsg] = useState<string | null>(null);
+
+  async function saveFee() {
+    const v = String(Math.max(0, Math.min(100, parseFloat(feeDraft || "0") || 0)));
+    const { error } = await supabase.rpc("admin_set_setting", { p_key: "immigroov_commission_pct", p_value: v });
+    setFeeMsg(error ? error.message : `Default commission set to ${v}% (applies to new bookings).`);
+    load();
+  }
 
   async function openDetail(id: number) {
     setDetailId(id); setDetail(null);
@@ -62,16 +73,19 @@ export default function AdminManager() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [{ data: b }, { data: l }, { data: p }, { data: w }] = await Promise.all([
+    const [{ data: b }, { data: l }, { data: p }, { data: w }, { data: st }] = await Promise.all([
       supabase.rpc("admin_bookings"),
       supabase.rpc("admin_ledger"),
       supabase.rpc("admin_payouts"),
       supabase.rpc("admin_webinars"),
+      supabase.rpc("admin_get_settings"),
     ]);
     setBookings((b as Booking[]) || []);
     setLedger((l as Ledger[]) || []);
     setPayouts((p as Payout[]) || []);
     setWebinars((w as Webinar[]) || []);
+    const s0 = (st as any[])?.[0];
+    if (s0 && !feeDraft) setFeeDraft(String(s0.commission_pct ?? ""));
     setLoading(false);
   }, [supabase]);
   useEffect(() => { load(); }, [load]);
@@ -107,6 +121,17 @@ export default function AdminManager() {
         <div className="stat"><div className="n" style={{ color: "#0f7a44" }}>{sum("refund").toFixed(0)}</div><div className="l">Refunds ({cur})</div></div>
         <div className="stat"><div className="n" style={{ color: "#534ab7" }}>{sum("credit").toFixed(0)}</div><div className="l">Credits ({cur})</div></div>
         <div className="stat"><div className="n" style={{ color: "#a32020" }}>{(sum("charge") + sum("penalty")).toFixed(0)}</div><div className="l">Charges + penalties ({cur})</div></div>
+      </div>
+
+      <div className="card" style={{ padding: "12px 16px", marginBottom: 16, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+        <div style={{ fontWeight: 700, fontSize: 13.5 }}>Platform commission</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <input type="number" min={0} max={100} step={0.5} value={feeDraft} onChange={(e) => { setFeeDraft(e.target.value); setFeeMsg(null); }} style={{ width: 90, padding: "7px 10px" }} />
+          <span className="muted" style={{ fontSize: 13 }}>%</span>
+        </div>
+        <button className="btn-cta btn-sm" onClick={saveFee}>Save</button>
+        <span className="faint" style={{ fontSize: 12 }}>Default fee on customer gross. Per-service overrides still win. Applies to new bookings.</span>
+        {feeMsg && <span style={{ fontSize: 12.5, color: "var(--ok)", width: "100%" }}>{feeMsg}</span>}
       </div>
 
       <div className="seg" style={{ marginBottom: 16 }}>
@@ -173,7 +198,8 @@ export default function AdminManager() {
           <table className="adm-table" style={{ width: "100%", borderCollapse: "collapse", minWidth: 900 }}>
             <thead><tr>
               <th style={th}>Booked</th><th style={th}>Status</th><th style={th}>Mentor</th><th style={th}>Service</th>
-              <th style={th}>Gross</th><th style={th}>Fee %</th><th style={th}>Deduction</th><th style={th}>Net payout</th><th style={th}>Payout</th>
+              <th style={th}>Gross</th><th style={th}>Fee %</th><th style={th}>Deduction</th><th style={th}>Net (cust. ccy)</th>
+              <th style={th}>Net (mentor ccy)</th><th style={th}>FX</th><th style={th}>PPP</th><th style={th}>Payout</th>
             </tr></thead>
             <tbody>
               {fPayouts.map((p) => (
@@ -186,6 +212,9 @@ export default function AdminManager() {
                   <td style={td}>{p.fee_pct == null ? "—" : `${p.fee_pct}%`}</td>
                   <td style={{ ...td, color: "#a32020" }}>−{money(p.deduction, p.currency)}</td>
                   <td style={{ ...td, fontWeight: 800, color: "#0f7a44" }}>{money(p.net_payout, p.currency)}</td>
+                  <td style={td}>{p.mentor_net == null ? "—" : money(p.mentor_net, p.mentor_currency || "")}</td>
+                  <td style={td}>{p.fx_rate == null ? "—" : Number(p.fx_rate).toFixed(2)}</td>
+                  <td style={td}>{p.ppp == null ? "—" : `×${Number(p.ppp).toFixed(2)}`}</td>
                   <td style={td}><span className={`pill ${p.payout_status === "paid" ? "st-completed" : "st-pending"}`}>{p.payout_status}</span></td>
                 </tr>
               ))}
