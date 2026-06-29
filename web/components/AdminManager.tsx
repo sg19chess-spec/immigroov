@@ -331,7 +331,12 @@ export default function AdminManager() {
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 18 }}>
                   <Money label="Paid (gross)" v={detail.payment?.amount} c={detail.payment?.currency} tone="#0c1b33" />
                   <Money label={`Platform take (${detail.totals?.fee_pct ?? "—"}%)`} v={detail.totals?.platform_take} c={detail.totals?.currency} tone="#0f7a44" />
-                  <Money label="Net to mentor" v={detail.totals?.net_to_mentor} c={detail.totals?.currency} tone="#0c1b33" />
+                  <Money label="Net to mentor" v={detail.totals?.net_to_mentor} c={detail.totals?.mentor_currency || detail.payout?.currency} tone="#0c1b33" />
+                  {detail.totals?.ppp_multiplier != null && detail.totals.ppp_multiplier < 1 && (
+                    <span className="tag" style={{ background: "var(--orange-soft)", color: "var(--orange-d)", alignSelf: "center" }}>
+                      PPP ×{Number(detail.totals.ppp_multiplier).toFixed(2)}
+                    </span>
+                  )}
                   {detail.totals?.customer_refund > 0 && <Money label="Refunded" v={detail.totals.customer_refund} c={detail.totals.currency} tone="#0f7a44" />}
                   {detail.totals?.customer_credit > 0 && <Money label="Credit" v={detail.totals.customer_credit} c={detail.totals.currency} tone="#534ab7" />}
                   {detail.totals?.customer_charge > 0 && <Money label="Charged" v={detail.totals.customer_charge} c={detail.totals.currency} tone="#a32020" />}
