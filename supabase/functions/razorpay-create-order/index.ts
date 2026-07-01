@@ -55,7 +55,7 @@ Deno.serve(async (req) => {
       .eq("booking_id", booking_id).eq("status", "initiated");
 
     return json({
-      order_id: order.id, key_id: KEY_ID(), amount: amountMinor, currency,
+      order_id: order.id, key_id: await KEY_ID(), amount: amountMinor, currency,
       booking_id, name: name ?? null, email,
     });
   } catch (e) {

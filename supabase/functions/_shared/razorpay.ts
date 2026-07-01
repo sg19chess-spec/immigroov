@@ -3,8 +3,6 @@ import { createClient, SupabaseClient } from "npm:@supabase/supabase-js@2";
 
 const BASE = "https://api.razorpay.com/v1";
 
-export const KEY_ID = () => Deno.env.get("RAZORPAY_KEY_ID")!;
-
 // Service-role client — bypasses RLS for payment writes.
 export function adminClient(): SupabaseClient {
   return createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, {
@@ -12,15 +10,34 @@ export function adminClient(): SupabaseClient {
   });
 }
 
-function authHeader(): string {
-  return "Basic " + btoa(`${Deno.env.get("RAZORPAY_KEY_ID")}:${Deno.env.get("RAZORPAY_KEY_SECRET")}`);
+// Secrets: prefer edge-function env (supabase secrets set …); otherwise fall back
+// to Supabase Vault via the service-role-only get_app_secret RPC. Cached per cold start.
+let _secrets: { id: string; secret: string; whsec: string } | null = null;
+async function secrets() {
+  if (_secrets) return _secrets;
+  const envId = Deno.env.get("RAZORPAY_KEY_ID");
+  if (envId) {
+    _secrets = { id: envId, secret: Deno.env.get("RAZORPAY_KEY_SECRET") ?? "", whsec: Deno.env.get("RAZORPAY_WEBHOOK_SECRET") ?? "" };
+    return _secrets;
+  }
+  const a = adminClient();
+  const [id, secret, whsec] = await Promise.all([
+    a.rpc("get_app_secret", { p_name: "razorpay_key_id" }),
+    a.rpc("get_app_secret", { p_name: "razorpay_key_secret" }),
+    a.rpc("get_app_secret", { p_name: "razorpay_webhook_secret" }),
+  ]);
+  _secrets = { id: id.data ?? "", secret: secret.data ?? "", whsec: whsec.data ?? "" };
+  return _secrets;
 }
+
+export const KEY_ID = async () => (await secrets()).id;
 
 // Call the Razorpay REST API. Throws on non-2xx with the provider error attached.
 export async function rzp(path: string, init: RequestInit = {}): Promise<any> {
+  const s = await secrets();
   const res = await fetch(BASE + path, {
     ...init,
-    headers: { Authorization: authHeader(), "Content-Type": "application/json", ...(init.headers ?? {}) },
+    headers: { Authorization: "Basic " + btoa(`${s.id}:${s.secret}`), "Content-Type": "application/json", ...(init.headers ?? {}) },
   });
   const body = await res.json().catch(() => ({}));
   if (!res.ok) {
@@ -48,14 +65,14 @@ function timingSafeEqual(a: string, b: string): boolean {
 
 // Verify the webhook signature (HMAC-SHA256 of the raw body with the webhook secret).
 export async function verifyWebhook(rawBody: string, signature: string | null): Promise<boolean> {
-  const secret = Deno.env.get("RAZORPAY_WEBHOOK_SECRET");
-  if (!secret || !signature) return false;
-  return timingSafeEqual(await hmacHex(rawBody, secret), signature);
+  const { whsec } = await secrets();
+  if (!whsec || !signature) return false;
+  return timingSafeEqual(await hmacHex(rawBody, whsec), signature);
 }
 
 // Verify a Checkout handler response: HMAC-SHA256(order_id|payment_id) with the key secret.
 export async function verifyCheckout(orderId: string, paymentId: string, signature: string): Promise<boolean> {
-  const secret = Deno.env.get("RAZORPAY_KEY_SECRET");
+  const { secret } = await secrets();
   if (!secret) return false;
   return timingSafeEqual(await hmacHex(`${orderId}|${paymentId}`, secret), signature);
 }
