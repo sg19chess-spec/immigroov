@@ -14,7 +14,7 @@ type Payout = {
   gross: number | null; currency: string | null; fee_pct: number | null;
   deduction: number | null; net_payout: number | null;
   mentor_net: number | null; mentor_currency: string | null; fx_rate: number | null; ppp: number | null;
-  payout_status: string;
+  method: string | null; payout_status: string;
 };
 type Ledger = {
   id: number; created_at: string; booking_id: number; party: string; kind: string; pct: number | null;
@@ -64,6 +64,12 @@ export default function AdminManager() {
     setDetailId(id); setDetail(null);
     const { data } = await supabase.rpc("admin_booking_detail", { p_booking_id: id });
     setDetail(data || {});
+  }
+  async function markPaid(bookingId: number) {
+    const ref = window.prompt("Payout reference (transfer id / UTR / note):", "");
+    if (ref === null) return;
+    const { error } = await supabase.rpc("mark_payout_paid", { p_booking_id: bookingId, p_reference: ref || null });
+    if (error) window.alert(error.message); else load();
   }
   async function openRegs(w: Webinar) {
     setRegs({ title: w.title, rows: [] });
@@ -199,7 +205,7 @@ export default function AdminManager() {
             <thead><tr>
               <th style={th}>Booked</th><th style={th}>Status</th><th style={th}>Mentor</th><th style={th}>Service</th>
               <th style={th}>Gross</th><th style={th}>Fee %</th><th style={th}>Deduction</th><th style={th}>Net (cust. ccy)</th>
-              <th style={th}>Net (mentor ccy)</th><th style={th}>FX</th><th style={th}>PPP</th><th style={th}>Payout</th>
+              <th style={th}>Net (mentor ccy)</th><th style={th}>FX</th><th style={th}>PPP</th><th style={th}>Method</th><th style={th}>Payout</th>
             </tr></thead>
             <tbody>
               {fPayouts.map((p) => (
@@ -215,7 +221,13 @@ export default function AdminManager() {
                   <td style={td}>{p.mentor_net == null ? "—" : money(p.mentor_net, p.mentor_currency || "")}</td>
                   <td style={td}>{p.fx_rate == null ? "—" : Number(p.fx_rate).toFixed(2)}</td>
                   <td style={td}>{p.ppp == null ? "—" : `×${Number(p.ppp).toFixed(2)}`}</td>
-                  <td style={td}><span className={`pill ${p.payout_status === "paid" ? "st-completed" : "st-pending"}`}>{p.payout_status}</span></td>
+                  <td style={td}>{p.method === "auto_inr" ? "Auto (INR)" : p.method === "manual" ? "Manual" : "—"}</td>
+                  <td style={td} onClick={(e) => e.stopPropagation()}>
+                    <span className={`pill ${p.payout_status === "paid" ? "st-completed" : p.payout_status === "void" || p.payout_status === "blocked" ? "st-cancelled" : "st-pending"}`}>{p.payout_status}</span>
+                    {p.status === "completed" && !["paid", "void", "blocked"].includes(p.payout_status) && (
+                      <button className="btn-ghost btn-sm" style={{ marginLeft: 6 }} onClick={() => markPaid(p.booking_id)}>Mark paid</button>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>

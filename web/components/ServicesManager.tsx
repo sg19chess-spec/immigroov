@@ -5,6 +5,7 @@ import { money } from "@/lib/format";
 
 type Svc = { id: number; title: string; description: string; duration: number; type: string; category: string; set_price: number; set_currency: string; platform_fee: number; is_active: boolean; is_ppp: boolean };
 type Q = { id: number; question_text: string; is_required: boolean };
+const CURRENCIES = ["USD","GBP","INR","EUR","CAD","AUD","NZD","SGD","HKD","JPY","KRW","CNY","MXN","BRL","ZAR","CHF","SEK","NOK","DKK","PLN","RON","CZK","HUF","BGN","ILS","IDR","PHP","MYR","THB","TRY"];
 
 export default function ServicesManager({ mentorId }: { mentorId: number }) {
   const supabase = createClient();
@@ -32,6 +33,7 @@ export default function ServicesManager({ mentorId }: { mentorId: number }) {
     setAdding(false); setMsg("Service created."); load();
   }
   async function toggle(s: Svc) { await supabase.rpc("demo_set_service_active", { p_id: s.id, p_active: !s.is_active }); load(); }
+  async function setCurrency(id: number, ccy: string) { const { error } = await supabase.rpc("demo_set_service_currency", { p_id: id, p_currency: ccy }); if (error) setMsg(error.message); load(); }
   async function del(id: number) { const { error } = await supabase.rpc("demo_delete_service", { p_id: id }); if (error) setMsg(error.message); load(); }
   async function showQ(id: number) {
     if (openQ === id) { setOpenQ(null); return; }
@@ -90,6 +92,9 @@ export default function ServicesManager({ mentorId }: { mentorId: number }) {
             )}
           </div>
           <div className="actions">
+            <select title="Receiving currency" value={s.set_currency} onChange={(e) => setCurrency(s.id, e.target.value)} style={{ padding: "4px 6px", fontSize: 12.5 }}>
+              {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
             <span className={`toggle ${s.is_active ? "on" : ""}`} title="Active" onClick={() => toggle(s)}><span className="knob" /></span>
             <button className="btn-ghost btn-sm" onClick={() => showQ(s.id)}>Questions</button>
             <button className="btn-ghost btn-sm" style={{ color: "var(--bad)" }} onClick={() => del(s.id)}>Delete</button>

@@ -13,6 +13,20 @@ type Slot = { slot_start: string };
 const dateKey = (iso: string, tz: string) => new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(iso));
 const COUNTRIES: [string, string][] = [["US","United States"],["IN","India"],["GB","United Kingdom"],["BR","Brazil"],["NL","Netherlands"],["DE","Germany"],["CA","Canada"],["AU","Australia"],["AE","UAE"],["SG","Singapore"],["JP","Japan"],["ZA","South Africa"],["NG","Nigeria"],["PH","Philippines"],["ID","Indonesia"],["MX","Mexico"]];
 
+let rzpScriptPromise: Promise<void> | null = null;
+function loadRazorpayScript(): Promise<void> {
+  if (typeof window !== "undefined" && (window as unknown as { Razorpay?: unknown }).Razorpay) return Promise.resolve();
+  if (rzpScriptPromise) return rzpScriptPromise;
+  rzpScriptPromise = new Promise<void>((resolve, reject) => {
+    const s = document.createElement("script");
+    s.src = "https://checkout.razorpay.com/v1/checkout.js";
+    s.onload = () => resolve();
+    s.onerror = () => { rzpScriptPromise = null; reject(new Error("Could not load the payment window — check your connection and retry.")); };
+    document.body.appendChild(s);
+  });
+  return rzpScriptPromise;
+}
+
 export default function MentorPage({ params }: { params: { id: string } }) {
   const mentorId = Number(params.id);
   const supabase = createClient();
@@ -39,8 +53,10 @@ export default function MentorPage({ params }: { params: { id: string } }) {
   const [myEmail, setMyEmail] = useState<string | null>(null);
   const [guest, setGuest] = useState({ name: "", email: "" });
   const [engaged, setEngagedS] = useState(true); // assume true until mount to avoid SSR flash
+  const [payEnabled, setPayEnabled] = useState(false);
 
   useEffect(() => { setMyEmail(getEmail()); }, []);
+  useEffect(() => { (async () => { const { data } = await supabase.rpc("public_setting", { p_key: "payments_enabled" }); setPayEnabled(String(data) === "true"); })(); }, [supabase]);
   useEffect(() => {
     setEngagedS(isEngaged());
     const on = () => setEngagedS(true);
@@ -110,27 +126,72 @@ export default function MentorPage({ params }: { params: { id: string } }) {
     if (!email.includes("@")) { setMsg({ t: "Please enter a valid email so we can send your confirmation.", ok: false }); return; }
     setBusy(true); setMsg(null);
     const ans = questions.map((q) => ({ question_id: q.id, answer_text: answers[q.id] || "" }));
-    // Server prices the booking: fetch a fresh binding quote, then commit it by id.
-    // The client sends NO money/FX/PPP values — the server is the source of truth.
+    const svcId = svc.id, slotTime = slot;
+    const finish = () => { if (!myEmail) { saveEmail(email); setMyEmail(email); } setBooked({ when: `${fmtDate(slotTime, tz)}, ${fmtTime(slotTime, tz)}`, email }); window.scrollTo({ top: 0, behavior: "smooth" }); };
+
+    try {
+      if (payEnabled) { await payAndBook(svcId, slotTime, email, ans); finish(); }
+      else { await mockBook(svcId, slotTime, email, ans); finish(); }
+    } catch (e) {
+      const m = String((e as Error)?.message || e);
+      if (m === "DISMISSED") { setMsg(null); }                 // user closed Checkout — hold expires on its own
+      else if (m.includes("FX_UNAVAILABLE")) setMsg({ t: "We couldn't fetch live exchange rates just now — please try again in a moment.", ok: false });
+      else if (m.includes("CONFIRMING")) setMsg({ t: "Payment received — we're confirming it. Your session will appear under ‘My sessions’ shortly.", ok: true });
+      else setMsg({ t: m, ok: false });
+    } finally { setBusy(false); }
+  }
+
+  // Mock path (payments disabled): server-priced quote committed instantly.
+  async function mockBook(svcId: number, slotTime: string, email: string, ans: { question_id: number; answer_text: string }[]) {
     const doBook = async () => {
-      const { data: quote, error: qErr } = await supabase.rpc("get_booking_quote", { p_service_id: svc.id, p_customer_country: country });
+      const { data: quote, error: qErr } = await supabase.rpc("get_booking_quote", { p_service_id: svcId, p_customer_country: country });
       if (qErr) throw qErr;
       const { error } = await supabase.rpc("book_session_guest", {
-        p_quote_id: (quote as { quote_id: string }).quote_id, p_mentor_id: mentorId, p_service_id: svc.id,
-        p_slot_time: slot, p_email: email, p_name: guest.name || null, p_timezone: tz, p_answers: ans,
+        p_quote_id: (quote as { quote_id: string }).quote_id, p_mentor_id: mentorId, p_service_id: svcId,
+        p_slot_time: slotTime, p_email: email, p_name: guest.name || null, p_timezone: tz, p_answers: ans,
       });
       if (error) throw error;
     };
-    try {
-      try { await doBook(); }
-      catch (e) { if (String((e as Error)?.message || e).includes("QUOTE_EXPIRED")) await doBook(); else throw e; } // re-quote once
-      if (!myEmail) { saveEmail(email); setMyEmail(email); }
-      setBooked({ when: `${fmtDate(slot, tz)}, ${fmtTime(slot, tz)}`, email });
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    } catch (e) {
-      const m = String((e as Error)?.message || e);
-      setMsg({ t: m.includes("FX_UNAVAILABLE") ? "We couldn't fetch live exchange rates just now — please try again in a moment." : m, ok: false });
-    } finally { setBusy(false); }
+    try { await doBook(); } catch (e) { if (String((e as Error)?.message || e).includes("QUOTE_EXPIRED")) await doBook(); else throw e; }
+  }
+
+  // Real path: quote → reserve+order (edge) → Razorpay Checkout → poll for webhook confirmation.
+  async function payAndBook(svcId: number, slotTime: string, email: string, ans: { question_id: number; answer_text: string }[], retried = false): Promise<void> {
+    const { data: quote, error: qErr } = await supabase.rpc("get_booking_quote", { p_service_id: svcId, p_customer_country: country });
+    if (qErr) throw qErr;
+    const { data: order, error: oErr } = await supabase.functions.invoke("razorpay-create-order", {
+      body: { quote_id: (quote as { quote_id: string }).quote_id, mentor_id: mentorId, service_id: svcId, slot_time: slotTime, email, name: guest.name || null, timezone: tz, answers: ans },
+    });
+    if (oErr) throw new Error(oErr.message);
+    if ((order as { error?: string })?.error) {
+      if ((order as { code?: string }).code === "REQUOTE" && !retried) return payAndBook(svcId, slotTime, email, ans, true);
+      throw new Error((order as { error: string }).error);
+    }
+    await loadRazorpayScript();
+    await new Promise<void>((resolve, reject) => {
+      const rzp = new (window as unknown as { Razorpay: new (o: unknown) => { open: () => void } }).Razorpay({
+        key: order.key_id, order_id: order.order_id, amount: order.amount, currency: order.currency,
+        name: "Immigroov", description: svc?.title || "Mentoring session", prefill: { email, name: guest.name || "" },
+        theme: { color: "#e8622c" },
+        handler: async () => {
+          setMsg({ t: "Confirming payment…", ok: true });
+          const okConfirmed = await pollConfirmed(order.booking_id);
+          if (okConfirmed) resolve(); else reject(new Error("CONFIRMING"));
+        },
+        modal: { ondismiss: () => reject(new Error("DISMISSED")) },
+      });
+      rzp.open();
+    });
+  }
+
+  async function pollConfirmed(bookingId: number): Promise<boolean> {
+    for (let i = 0; i < 20; i++) {                             // ~40s: webhook is usually a few seconds
+      const { data } = await supabase.rpc("booking_status", { p_booking_id: bookingId });
+      if (data === "confirmed") return true;
+      if (data === "cancelled" || data === "expired") return false;
+      await new Promise((r) => setTimeout(r, 2000));
+    }
+    return false;
   }
 
   return (
