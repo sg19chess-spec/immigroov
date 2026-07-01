@@ -85,6 +85,14 @@ Deno.serve(async (req) => {
         }
         break;
       }
+      case "payout.processed":
+      case "payout.reversed":
+      case "payout.failed":
+      case "payout.updated": {
+        const ent = event.payload.payout.entity;              // RazorpayX payout status
+        await admin.rpc("apply_payout_status", { p_payout_id: ent.id, p_status: ent.status });
+        break;
+      }
       default:
         break; // ignore other events
     }

@@ -71,6 +71,14 @@ export default function AdminManager() {
     const { error } = await supabase.rpc("mark_payout_paid", { p_booking_id: bookingId, p_reference: ref || null });
     if (error) window.alert(error.message); else load();
   }
+  async function payViaRazorpayX(bookingId: number) {
+    if (!window.confirm("Send this payout via RazorpayX?")) return;
+    const { data, error } = await supabase.functions.invoke("razorpayx-payout", { body: { booking_id: bookingId } });
+    const err = error?.message || (data as { error?: string })?.error;
+    if (err) { window.alert(err); return; }
+    window.alert(`Payout ${(data as { status?: string }).status ?? "created"}${(data as { payout_id?: string }).payout_id ? ` — ${(data as { payout_id: string }).payout_id}` : ""}`);
+    load();
+  }
   async function openRegs(w: Webinar) {
     setRegs({ title: w.title, rows: [] });
     const { data } = await supabase.rpc("webinar_registrants", { p_webinar_id: w.id });
@@ -225,7 +233,12 @@ export default function AdminManager() {
                   <td style={td} onClick={(e) => e.stopPropagation()}>
                     <span className={`pill ${p.payout_status === "paid" ? "st-completed" : p.payout_status === "void" || p.payout_status === "blocked" ? "st-cancelled" : "st-pending"}`}>{p.payout_status}</span>
                     {p.status === "completed" && !["paid", "void", "blocked"].includes(p.payout_status) && (
-                      <button className="btn-ghost btn-sm" style={{ marginLeft: 6 }} onClick={() => markPaid(p.booking_id)}>Mark paid</button>
+                      <>
+                        {p.method === "auto_inr" && (
+                          <button className="btn-cta btn-sm" style={{ marginLeft: 6 }} onClick={() => payViaRazorpayX(p.booking_id)}>Pay via RazorpayX</button>
+                        )}
+                        <button className="btn-ghost btn-sm" style={{ marginLeft: 6 }} onClick={() => markPaid(p.booking_id)}>Mark paid</button>
+                      </>
                     )}
                   </td>
                 </tr>
