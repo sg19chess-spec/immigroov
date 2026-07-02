@@ -175,6 +175,9 @@ export default function MentorPage({ params }: { params: { id: string } }) {
         theme: { color: "#e8622c" },
         handler: async () => {
           setMsg({ t: "Confirming payment…", ok: true });
+          // Confirm via our server verifying with Razorpay (webhook-independent);
+          // the webhook + cron sweep are backups. All idempotent.
+          try { await supabase.functions.invoke("razorpay-verify", { body: { order_id: order.order_id } }); } catch { /* poll/backups will catch it */ }
           const okConfirmed = await pollConfirmed(order.booking_id);
           if (okConfirmed) resolve(); else reject(new Error("CONFIRMING"));
         },
