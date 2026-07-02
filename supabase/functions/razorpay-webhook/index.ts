@@ -13,7 +13,10 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   const raw = await req.text();
   const sig = req.headers.get("x-razorpay-signature");
-  if (!(await verifyWebhook(raw, sig))) return new Response("bad signature", { status: 400 });
+  let valid = false;
+  try { valid = await verifyWebhook(raw, sig); }
+  catch (e) { console.error("verify error:", (e as Error)?.message); return new Response("verify unavailable", { status: 503 }); } // retryable
+  if (!valid) return new Response("bad signature", { status: 400 });
 
   const admin = adminClient();
   const event = JSON.parse(raw);
