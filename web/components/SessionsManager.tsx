@@ -11,7 +11,7 @@ type S = {
   offer_id: number | null; offer_by: string | null; offer_status: string | null; offer_date: string | null;
   range_start: string | null; range_end: string | null; requested_date: string | null; selected_time: string | null; offer_was_late: boolean | null;
   req_id: number | null; req_kind: string | null; req_initiated_by: string | null; req_status: string | null;
-  ledger_summary: string | null;
+  ledger_summary: string | null; mentor_join_token: string | null;
 };
 
 // Wall-clock date+time in tz -> UTC ISO (DST-aware).
@@ -118,7 +118,7 @@ export default function SessionsManager({ mentorId, mentorTz }: { mentorId: numb
           </div>
           {showActions && (
             <div className="sess-actions">
-              {b.meeting_url && <a href={b.meeting_url} target="_blank" className="btn-cta btn-sm">🎥 Join</a>}
+              {b.mentor_join_token && <a href={`/join/${b.mentor_join_token}`} target="_blank" className="btn-cta btn-sm">🎥 Join</a>}
               <button className="btn-ghost btn-sm" onClick={() => setProposing(b.id)}>↻ Reschedule</button>
               <button className="btn-ghost btn-sm" style={{ color: "var(--bad)" }} onClick={() => cancel(b.id)}>Cancel</button>
             </div>

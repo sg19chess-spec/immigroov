@@ -14,7 +14,7 @@ type B = {
   offer_id: number | null; offer_by: string | null; offer_status: string | null; offer_date: string | null;
   range_start: string | null; range_end: string | null; requested_date: string | null; selected_time: string | null; offer_was_late: boolean | null;
   req_id: number | null; req_kind: string | null; req_initiated_by: string | null; req_status: string | null;
-  ledger_summary: string | null;
+  ledger_summary: string | null; customer_join_token: string | null;
 };
 
 const isLate = (slot: string) => new Date(slot).getTime() - Date.now() < 24 * 3600 * 1000;
@@ -215,7 +215,7 @@ function Card({ b, tz, i, h, email, dim }: { b: B; tz: string; i: number; h: Han
       {b.ledger_summary && <div className="faint" style={{ fontSize: 11.5, padding: "8px 18px", background: "var(--surface-2)" }}>💸 {b.ledger_summary}</div>}
 
       <div className="sess-foot">
-        {b.meeting_url && active && !canReport && <a href={b.meeting_url} target="_blank" className="btn btn-cta">🎥 Join video call</a>}
+        {b.customer_join_token && active && !canReport && <a href={`/join/${b.customer_join_token}`} target="_blank" className="btn btn-cta">🎥 Join video call</a>}
         <div className="sess-btn-row">
           {active && !busy && !picking && !canReport && <button className="btn-ghost btn-sm" onClick={startReschedule}>↻ Reschedule</button>}
           {email && <button className="btn-ghost btn-sm" onClick={() => setChatOpen((v) => !v)}>{chatOpen ? "Hide chat" : "💬 Message mentor"}</button>}
