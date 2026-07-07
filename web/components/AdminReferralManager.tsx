@@ -14,6 +14,13 @@ type Affiliate = {
   link_slug: string | null; code_string: string | null;
 };
 type BatchPreviewRow = { commission_ledger_id: number; affiliate_id: number; amount_inr: number; booking_id: number };
+type ReferredBooking = {
+  booking_id: number; status: string; slot_time: string | null; customer_email: string | null;
+  affiliate_id: number | null; affiliate_email: string | null; referral_code: string | null;
+  discount_pct: number | null; customer_paid: number | null; customer_currency: string | null;
+  commission_amount_inr: number | null; commission_status: string | null;
+  mentor_net_amount: number | null; mentor_currency: string | null;
+};
 type SteeringRow = { affiliate_id: number; top_mentor_id: number; concentration_pct: number };
 type AffiliateType = "mentor" | "non_mentor";
 
@@ -30,6 +37,7 @@ export default function AdminReferralManager() {
   const [steering, setSteering] = useState<SteeringRow[]>([]);
   const [batchDate, setBatchDate] = useState("");
   const [preview, setPreview] = useState<BatchPreviewRow[] | null>(null);
+  const [referredBookings, setReferredBookings] = useState<ReferredBooking[]>([]);
   const [msg, setMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [mentors, setMentors] = useState<{ mentor_id: number; name: string }[]>([]);
@@ -45,18 +53,20 @@ export default function AdminReferralManager() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [q, ar, aff, st] = await Promise.all([
+    const [q, ar, aff, st, rb] = await Promise.all([
       supabase.rpc("admin_referral_review_queue"),
       supabase.rpc("admin_attendance_review_queue"),
       supabase.rpc("admin_affiliates_overview"),
       supabase.rpc("admin_mentor_steering_report"),
+      supabase.rpc("admin_referral_bookings_overview"),
     ]);
-    const err = q.error || ar.error || aff.error || st.error;
+    const err = q.error || ar.error || aff.error || st.error || rb.error;
     if (err) setMsg(`Couldn't load referral data: ${err.message}`);
     setFlags((q.data as FraudFlag[]) || []);
     setAttReviews((ar.data as AttendanceReview[]) || []);
     setAffiliates((aff.data as Affiliate[]) || []);
     setSteering((st.data as SteeringRow[]) || []);
+    setReferredBookings((rb.data as ReferredBooking[]) || []);
     setLoading(false);
   }, [supabase]);
   useEffect(() => { load(); }, [load]);
@@ -323,7 +333,42 @@ export default function AdminReferralManager() {
       )}
 
       {tab === "payouts" && (
-        <div className="card" style={{ padding: 18 }}>
+        <>
+          <h3 className="sec" style={{ fontSize: 15, marginBottom: 8 }}>Referred bookings</h3>
+          <div className="card" style={{ padding: 0, marginBottom: 20, overflowX: "auto" }}>
+            {referredBookings.length === 0 ? (
+              <p className="muted" style={{ fontSize: 13.5, padding: 18 }}>No referred bookings yet.</p>
+            ) : (
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <thead><tr>
+                  <th style={th}>Booking</th><th style={th}>Session</th><th style={th}>Customer</th>
+                  <th style={th}>Referred by</th><th style={th}>Code</th><th style={th}>Discount</th>
+                  <th style={th}>Customer paid</th><th style={th}>Incentive (affiliate)</th><th style={th}>Net to mentor</th>
+                </tr></thead>
+                <tbody>
+                  {referredBookings.map((r) => (
+                    <tr key={r.booking_id}>
+                      <td style={td}>#{r.booking_id}<br /><span className="faint">{r.status}</span></td>
+                      <td style={td}>{r.slot_time ? new Date(r.slot_time).toLocaleDateString() : "—"}</td>
+                      <td style={td}>{r.customer_email || "—"}</td>
+                      <td style={td}>{r.affiliate_email || "—"}</td>
+                      <td style={td}>{r.referral_code || "—"}</td>
+                      <td style={td}>{r.discount_pct != null ? `${Number(r.discount_pct)}%` : "—"}</td>
+                      <td style={td}>{r.customer_paid != null ? `${Number(r.customer_paid).toFixed(2)} ${r.customer_currency || ""}` : "—"}</td>
+                      <td style={td}>
+                        {r.commission_amount_inr != null
+                          ? <>{money(r.commission_amount_inr)}<br /><span className="faint">{r.commission_status}</span></>
+                          : <span className="faint">awaiting session completion</span>}
+                      </td>
+                      <td style={td}>{r.mentor_net_amount != null ? `${Number(r.mentor_net_amount).toFixed(2)} ${r.mentor_currency || ""}` : "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+
+          <div className="card" style={{ padding: 18 }}>
           <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
             <label className="fld" style={{ margin: 0 }}>Batch date</label>
             <input type="date" value={batchDate} onChange={(e) => { setBatchDate(e.target.value); setPreview(null); }} />
@@ -352,7 +397,8 @@ export default function AdminReferralManager() {
           <div className="faint" style={{ fontSize: 11.5, marginTop: 14 }}>
             Finalizing marks entries "paid" for tracking — it does not move money. Send the actual transfer manually per your payout_details on file.
           </div>
-        </div>
+          </div>
+        </>
       )}
 
       {tab === "reports" && (

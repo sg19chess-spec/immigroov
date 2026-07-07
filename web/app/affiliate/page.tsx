@@ -12,6 +12,7 @@ type Summary = {
   tier: string;
   pending_commission_inr: number;
   paid_commission_inr: number;
+  upcoming: { booking_id: number; slot_time: string | null; status: string }[];
   referrals: { booking_id: number; status: string; amount_inr: number; created_at: string; under_review: boolean }[];
   payouts: { batch_date: string; amount_inr: number; entry_count: number }[];
 };
@@ -121,6 +122,18 @@ export default function AffiliatePage() {
           ) : <p className="muted" style={{ fontSize: 13 }}>No code set up yet.</p>}
         </div>
       </div>
+
+      {summary.upcoming.length > 0 && (
+        <div className="card" style={{ padding: "12px 16px", marginBottom: 18, fontSize: 13 }}>
+          <div className="faint" style={{ fontWeight: 700, textTransform: "uppercase", fontSize: 11.5, marginBottom: 6 }}>Upcoming referrals</div>
+          {summary.upcoming.map((u) => (
+            <div key={u.booking_id} style={{ display: "flex", justifyContent: "space-between", padding: "4px 0" }}>
+              <span>Booking #{u.booking_id} — booked ✓</span>
+              <span className="faint">{u.slot_time ? new Date(u.slot_time).toLocaleDateString() : "—"} · awaiting session completion</span>
+            </div>
+          ))}
+        </div>
+      )}
 
       <h3 className="sec" style={{ fontSize: 16, marginBottom: 10 }}>Referral history</h3>
       <div className="card" style={{ padding: 0, marginBottom: 22 }}>
