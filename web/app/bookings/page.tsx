@@ -15,6 +15,7 @@ type B = {
   range_start: string | null; range_end: string | null; requested_date: string | null; selected_time: string | null; offer_was_late: boolean | null;
   req_id: number | null; req_kind: string | null; req_initiated_by: string | null; req_status: string | null;
   ledger_summary: string | null; customer_join_token: string | null;
+  review_token: string | null; review_status: string | null; review_rating: number | null;
 };
 
 const isLate = (slot: string) => new Date(slot).getTime() - Date.now() < 24 * 3600 * 1000;
@@ -222,7 +223,24 @@ function Card({ b, tz, i, h, email, dim }: { b: B; tz: string; i: number; h: Han
           {active && !busy && !canReport && <button className="btn-ghost btn-sm" style={{ color: "var(--bad)", marginLeft: "auto" }} onClick={() => h.cancel(b)}>Cancel</button>}
         </div>
         {canReport && !busy && <button className="btn-ghost btn-sm" style={{ color: "var(--bad)", width: "100%" }} onClick={() => h.flagNoShow(b.id)}>⚠ Report: mentor didn't show up</button>}
-        {!active && !mentorNoShowOpen && !customerNoShow && !b.ledger_summary && <span className="faint" style={{ fontSize: 12.5 }}>This session is closed — no actions available.</span>}
+        {b.status === "completed" && b.review_token && (
+          <div style={{ width: "100%" }}>
+            {!b.review_status && (
+              <Link href={`/review/${b.review_token}`} className="btn btn-cta btn-sm" style={{ width: "100%", textAlign: "center" }}>★★★★★ Leave a review</Link>
+            )}
+            {b.review_status && (
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12.5 }}>
+                <span className="faint">
+                  {b.review_status === "published" && `You rated ${"★".repeat(b.review_rating || 0)}`}
+                  {b.review_status === "pending" && "Your review is awaiting moderation"}
+                  {b.review_status === "rejected" && "Your review wasn't published"}
+                </span>
+                <Link href={`/review/${b.review_token}`} className="btn-ghost btn-sm">Edit review</Link>
+              </div>
+            )}
+          </div>
+        )}
+        {!active && !mentorNoShowOpen && !customerNoShow && !b.ledger_summary && !(b.status === "completed" && b.review_token) && <span className="faint" style={{ fontSize: 12.5 }}>This session is closed — no actions available.</span>}
       </div>
       {chatOpen && email && <div style={{ padding: "0 16px 16px" }}><ChatThread bookingId={b.id} email={email} /></div>}
     </div>
