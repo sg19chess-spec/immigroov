@@ -15,6 +15,7 @@ type Affiliate = {
 };
 type BatchPreviewRow = { commission_ledger_id: number; affiliate_id: number; amount_inr: number; booking_id: number };
 type SteeringRow = { affiliate_id: number; top_mentor_id: number; concentration_pct: number };
+type AffiliateType = "mentor" | "non_mentor";
 
 const money = (a: number | null) => (a == null ? "—" : `₹${Number(a).toFixed(2)}`);
 const th: React.CSSProperties = { textAlign: "left", padding: "9px 12px", fontSize: 11.5, textTransform: "uppercase", letterSpacing: ".04em", color: "var(--muted)", borderBottom: "1px solid var(--line)", whiteSpace: "nowrap" };
@@ -31,6 +32,16 @@ export default function AdminReferralManager() {
   const [preview, setPreview] = useState<BatchPreviewRow[] | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [mentors, setMentors] = useState<{ mentor_id: number; name: string }[]>([]);
+  const [showAdd, setShowAdd] = useState(false);
+  const [addBusy, setAddBusy] = useState(false);
+  const [addErr, setAddErr] = useState<string | null>(null);
+  const [form, setForm] = useState({
+    email: "", firstName: "", type: "non_mentor" as AffiliateType, mentorId: "",
+    payoutDetails: "", audienceCorridor: "", agreedTerms: false,
+    slug: "", isHouseChannel: false,
+    code: "", redemptionCap: "100", expiresAt: "", discountPct: "10",
+  });
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -49,6 +60,39 @@ export default function AdminReferralManager() {
     setLoading(false);
   }, [supabase]);
   useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    supabase.rpc("search_mentors", {}).then(({ data }) => {
+      setMentors(((data as any[]) || []).map((m) => ({ mentor_id: m.mentor_id, name: m.name })));
+    });
+  }, [supabase]);
+
+  async function submitAdd() {
+    setAddErr(null);
+    if (!form.email.includes("@")) { setAddErr("A valid email is required."); return; }
+    if (!form.agreedTerms) { setAddErr("Confirm the affiliate has agreed to the commission terms."); return; }
+    if (!form.slug.trim()) { setAddErr("A link slug is required."); return; }
+    if (!form.code.trim()) { setAddErr("A referral code is required."); return; }
+    if (!form.expiresAt) { setAddErr("A code expiry date is required."); return; }
+    if (form.type === "mentor" && !form.mentorId) { setAddErr("Pick which mentor this affiliate is."); return; }
+    setAddBusy(true);
+    const { error } = await supabase.rpc("admin_onboard_affiliate", {
+      p_email: form.email, p_type: form.type, p_slug: form.slug, p_code: form.code,
+      p_redemption_cap: Number(form.redemptionCap) || 100,
+      p_expires_at: new Date(form.expiresAt + "T23:59:59").toISOString(),
+      p_discount_pct: Number(form.discountPct) || 0,
+      p_first_name: form.firstName || null,
+      p_mentor_id: form.type === "mentor" ? Number(form.mentorId) : null,
+      p_payout_details: form.type === "non_mentor" && form.payoutDetails ? { note: form.payoutDetails } : null,
+      p_audience_corridor: form.type === "non_mentor" ? form.audienceCorridor || null : null,
+      p_is_house_channel: form.isHouseChannel,
+    });
+    setAddBusy(false);
+    if (error) { setAddErr(error.message); return; }
+    setShowAdd(false);
+    setForm({ email: "", firstName: "", type: "non_mentor", mentorId: "", payoutDetails: "", audienceCorridor: "", agreedTerms: false, slug: "", isHouseChannel: false, code: "", redemptionCap: "100", expiresAt: "", discountPct: "10" });
+    setMsg("Affiliate created.");
+    load();
+  }
 
   async function resolveFraud(flagId: number, decision: "approve" | "approve_with_note" | "reject_and_hold") {
     const note = decision === "approve" ? "" : window.prompt("Note for the audit trail:", "");
@@ -163,7 +207,95 @@ export default function AdminReferralManager() {
       )}
 
       {tab === "affiliates" && (
-        <div className="card" style={{ padding: 0, overflowX: "auto" }}>
+        <>
+          <div style={{ marginBottom: 14 }}>
+            <button className="btn-cta btn-sm" onClick={() => setShowAdd((v) => !v)}>{showAdd ? "Cancel" : "+ Add affiliate"}</button>
+          </div>
+
+          {showAdd && (
+            <div className="card" style={{ padding: 20, marginBottom: 18 }}>
+              <h3 className="sec" style={{ fontSize: 15, marginBottom: 12 }}>New affiliate</h3>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+                <div>
+                  <label className="fld">Email *</label>
+                  <input value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="affiliate@email.com" style={{ width: "100%" }} />
+                </div>
+                <div>
+                  <label className="fld">Name</label>
+                  <input value={form.firstName} onChange={(e) => setForm({ ...form, firstName: e.target.value })} style={{ width: "100%" }} />
+                </div>
+
+                <div>
+                  <label className="fld">Type *</label>
+                  <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value as AffiliateType })} style={{ width: "100%" }}>
+                    <option value="non_mentor">Non-mentor influencer</option>
+                    <option value="mentor">Mentor (referring own/other sessions)</option>
+                  </select>
+                </div>
+                {form.type === "mentor" ? (
+                  <div>
+                    <label className="fld">Which mentor? *</label>
+                    <select value={form.mentorId} onChange={(e) => setForm({ ...form, mentorId: e.target.value })} style={{ width: "100%" }}>
+                      <option value="">Select…</option>
+                      {mentors.map((m) => <option key={m.mentor_id} value={m.mentor_id}>{m.name}</option>)}
+                    </select>
+                  </div>
+                ) : (
+                  <div>
+                    <label className="fld">Audience / geography</label>
+                    <input value={form.audienceCorridor} onChange={(e) => setForm({ ...form, audienceCorridor: e.target.value })} placeholder="e.g. US-based YouTube, immigration content" style={{ width: "100%" }} />
+                  </div>
+                )}
+
+                {form.type === "non_mentor" && (
+                  <div style={{ gridColumn: "1 / -1" }}>
+                    <label className="fld">Payout details (bank / PayPal / Razorpay reference)</label>
+                    <input value={form.payoutDetails} onChange={(e) => setForm({ ...form, payoutDetails: e.target.value })} style={{ width: "100%" }} />
+                  </div>
+                )}
+
+                <div>
+                  <label className="fld">Link slug *</label>
+                  <input value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value })} placeholder="e.g. john-doe" style={{ width: "100%" }} />
+                </div>
+                <div style={{ display: "flex", alignItems: "flex-end", paddingBottom: 8 }}>
+                  <label style={{ fontSize: 13, display: "flex", alignItems: "center", gap: 6 }}>
+                    <input type="checkbox" checked={form.isHouseChannel} onChange={(e) => setForm({ ...form, isHouseChannel: e.target.checked })} />
+                    Founder's own house channel (0% promoter fee)
+                  </label>
+                </div>
+
+                <div>
+                  <label className="fld">Referral code *</label>
+                  <input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })} placeholder="e.g. JOHN10" style={{ width: "100%" }} />
+                </div>
+                <div>
+                  <label className="fld">Customer discount %</label>
+                  <input type="number" min={0} max={100} value={form.discountPct} onChange={(e) => setForm({ ...form, discountPct: e.target.value })} style={{ width: "100%" }} />
+                </div>
+                <div>
+                  <label className="fld">Redemption cap</label>
+                  <input type="number" min={1} value={form.redemptionCap} onChange={(e) => setForm({ ...form, redemptionCap: e.target.value })} style={{ width: "100%" }} />
+                </div>
+                <div>
+                  <label className="fld">Code expires *</label>
+                  <input type="date" value={form.expiresAt} onChange={(e) => setForm({ ...form, expiresAt: e.target.value })} style={{ width: "100%" }} />
+                </div>
+
+                <div style={{ gridColumn: "1 / -1" }}>
+                  <label style={{ fontSize: 13, display: "flex", alignItems: "center", gap: 6 }}>
+                    <input type="checkbox" checked={form.agreedTerms} onChange={(e) => setForm({ ...form, agreedTerms: e.target.checked })} />
+                    This affiliate has agreed to the commission terms *
+                  </label>
+                </div>
+              </div>
+
+              {addErr && <div className="banner bad" style={{ marginTop: 14 }}>{addErr}</div>}
+              <button className="btn-cta" style={{ marginTop: 16 }} disabled={addBusy} onClick={submitAdd}>{addBusy ? "Creating…" : "Create affiliate"}</button>
+            </div>
+          )}
+
+          <div className="card" style={{ padding: 0, overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead><tr>
               <th style={th}>Name / Email</th><th style={th}>Type</th><th style={th}>Status</th><th style={th}>Tier</th>
@@ -186,7 +318,8 @@ export default function AdminReferralManager() {
               {affiliates.length === 0 && <tr><td style={td} colSpan={9}>No affiliates yet.</td></tr>}
             </tbody>
           </table>
-        </div>
+          </div>
+        </>
       )}
 
       {tab === "payouts" && (
