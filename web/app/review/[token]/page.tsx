@@ -3,15 +3,11 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
-type ExistingReview = {
-  rating: number; title: string | null; review: string | null; status: string;
-  created_at: string; editable: boolean;
-};
 type TokenInfo = {
   booking_id: number; mentor_name: string; service_title: string | null;
-  expired: boolean; existing_review: ExistingReview | null;
+  expired: boolean; already_submitted: boolean; rating: number | null;
 };
-type PageState = "loading" | "invalid" | "expired" | "form" | "readonly" | "submitted";
+type PageState = "loading" | "invalid" | "expired" | "form" | "submitted";
 
 const STARS = [1, 2, 3, 4, 5];
 
@@ -28,7 +24,7 @@ export default function ReviewPage() {
   const [review, setReview] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const [submittedStatus, setSubmittedStatus] = useState<string | null>(null);
+  const [submittedRating, setSubmittedRating] = useState(0);
 
   useEffect(() => {
     if (!token) return;
@@ -37,15 +33,9 @@ export default function ReviewPage() {
       if (error) { setPageState("invalid"); return; }
       const d = data as TokenInfo;
       setInfo(d);
+      if (d.already_submitted) { setSubmittedRating(d.rating || 0); setPageState("submitted"); return; }
       if (d.expired) { setPageState("expired"); return; }
-      if (d.existing_review) {
-        setRating(d.existing_review.rating);
-        setTitle(d.existing_review.title || "");
-        setReview(d.existing_review.review || "");
-        setPageState(d.existing_review.editable ? "form" : "readonly");
-      } else {
-        setPageState("form");
-      }
+      setPageState("form");
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
@@ -53,13 +43,12 @@ export default function ReviewPage() {
   async function handleSubmit() {
     if (rating < 1) { setErr("Please pick a star rating."); return; }
     setBusy(true); setErr(null);
-    const isEdit = !!info?.existing_review;
-    const { data, error } = await supabase.rpc(isEdit ? "edit_review" : "submit_review", {
+    const { error } = await supabase.rpc("submit_review", {
       p_token: token, p_rating: rating, p_title: title.trim() || null, p_review: review.trim() || null,
     });
     setBusy(false);
     if (error) { setErr(error.message); return; }
-    setSubmittedStatus((data as { status: string }).status);
+    setSubmittedRating(rating);
     setPageState("submitted");
   }
 
@@ -82,16 +71,6 @@ export default function ReviewPage() {
           </>
         )}
 
-        {pageState === "readonly" && info?.existing_review && (
-          <>
-            <h2 className="sec">Your review</h2>
-            <div style={{ fontSize: 28, margin: "10px 0" }}>{"★".repeat(info.existing_review.rating)}{"☆".repeat(5 - info.existing_review.rating)}</div>
-            {info.existing_review.title && <p style={{ fontWeight: 700 }}>{info.existing_review.title}</p>}
-            <p className="muted">{info.existing_review.review}</p>
-            <p className="faint" style={{ fontSize: 12, marginTop: 10 }}>The edit window for this review has closed.</p>
-          </>
-        )}
-
         {pageState === "form" && info && (
           <>
             <h2 className="sec">How was your session with {info.mentor_name}?</h2>
@@ -106,18 +85,16 @@ export default function ReviewPage() {
             <textarea value={review} onChange={(e) => setReview(e.target.value)} placeholder="Tell us about your experience (optional)" rows={5} style={{ width: "100%", resize: "vertical" }} />
             {err && <div className="banner bad" style={{ marginTop: 10 }}>{err}</div>}
             <button className="btn-cta btn-lg" style={{ width: "100%", marginTop: 16 }} disabled={busy} onClick={handleSubmit}>
-              {busy ? "Submitting…" : info.existing_review ? "Save changes" : "Submit review"}
+              {busy ? "Submitting…" : "Submit review"}
             </button>
           </>
         )}
 
         {pageState === "submitted" && (
           <>
-            <div style={{ fontSize: 42 }}>✅</div>
-            <h2 className="sec" style={{ marginTop: 10 }}>Review submitted!</h2>
-            {submittedStatus === "published"
-              ? <p className="muted">Thanks — your review is live now.</p>
-              : <p className="muted">Thanks — your review is being reviewed and will appear shortly once approved.</p>}
+            <div style={{ fontSize: 32, color: "var(--orange-d)" }}>{"★".repeat(submittedRating)}{"☆".repeat(5 - submittedRating)}</div>
+            <h2 className="sec" style={{ marginTop: 10 }}>Thank you for your feedback.</h2>
+            <p className="muted">Your review has been received.</p>
           </>
         )}
       </div>

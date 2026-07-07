@@ -54,11 +54,20 @@ export default function AdminManager() {
   const [f, setF] = useState({ mentor: "", custEmail: "", mentorEmail: "", from: "", to: "", status: "", country: "" });
   const [feeDraft, setFeeDraft] = useState("");
   const [feeMsg, setFeeMsg] = useState<string | null>(null);
+  const [reviewExpiryDraft, setReviewExpiryDraft] = useState("");
+  const [reviewExpiryMsg, setReviewExpiryMsg] = useState<string | null>(null);
 
   async function saveFee() {
     const v = String(Math.max(0, Math.min(100, parseFloat(feeDraft || "0") || 0)));
     const { error } = await supabase.rpc("admin_set_setting", { p_key: "immigroov_commission_pct", p_value: v });
     setFeeMsg(error ? error.message : `Default commission set to ${v}% (applies to new bookings).`);
+    load();
+  }
+
+  async function saveReviewExpiry() {
+    const v = String(Math.max(1, Math.min(365, parseInt(reviewExpiryDraft || "90", 10) || 90)));
+    const { error } = await supabase.rpc("admin_set_setting", { p_key: "review_token_expiry_days", p_value: v });
+    setReviewExpiryMsg(error ? error.message : `Review links now expire ${v} days after the session (applies to new bookings).`);
     load();
   }
 
@@ -102,6 +111,7 @@ export default function AdminManager() {
     setWebinars((w as Webinar[]) || []);
     const s0 = (st as any[])?.[0];
     if (s0 && !feeDraft) setFeeDraft(String(s0.commission_pct ?? ""));
+    if (s0 && !reviewExpiryDraft) setReviewExpiryDraft(String(s0.review_token_expiry_days ?? "90"));
     setLoading(false);
   }, [supabase]);
   useEffect(() => { load(); }, [load]);
@@ -148,6 +158,17 @@ export default function AdminManager() {
         <button className="btn-cta btn-sm" onClick={saveFee}>Save</button>
         <span className="faint" style={{ fontSize: 12 }}>Default fee on customer gross. Per-service overrides still win. Applies to new bookings.</span>
         {feeMsg && <span style={{ fontSize: 12.5, color: "var(--ok)", width: "100%" }}>{feeMsg}</span>}
+      </div>
+
+      <div className="card" style={{ padding: "12px 16px", marginBottom: 16, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+        <div style={{ fontWeight: 700, fontSize: 13.5 }}>Review link expiry</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <input type="number" min={1} max={365} value={reviewExpiryDraft} onChange={(e) => { setReviewExpiryDraft(e.target.value); setReviewExpiryMsg(null); }} style={{ width: 90, padding: "7px 10px" }} />
+          <span className="muted" style={{ fontSize: 13 }}>days</span>
+        </div>
+        <button className="btn-cta btn-sm" onClick={saveReviewExpiry}>Save</button>
+        <span className="faint" style={{ fontSize: 12 }}>How long a "leave a review" link stays valid after session completion. Applies to new bookings.</span>
+        {reviewExpiryMsg && <span style={{ fontSize: 12.5, color: "var(--ok)", width: "100%" }}>{reviewExpiryMsg}</span>}
       </div>
 
       <div className="seg" style={{ marginBottom: 16 }}>

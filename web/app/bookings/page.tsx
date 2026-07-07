@@ -225,18 +225,10 @@ function Card({ b, tz, i, h, email, dim }: { b: B; tz: string; i: number; h: Han
         {canReport && !busy && <button className="btn-ghost btn-sm" style={{ color: "var(--bad)", width: "100%" }} onClick={() => h.flagNoShow(b.id)}>⚠ Report: mentor didn't show up</button>}
         {b.status === "completed" && b.review_token && (
           <div style={{ width: "100%" }}>
-            {!b.review_status && (
+            {b.review_rating == null ? (
               <Link href={`/review/${b.review_token}`} className="btn btn-cta btn-sm" style={{ width: "100%", textAlign: "center" }}>★★★★★ Leave a review</Link>
-            )}
-            {b.review_status && (
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12.5 }}>
-                <span className="faint">
-                  {b.review_status === "published" && `You rated ${"★".repeat(b.review_rating || 0)}`}
-                  {b.review_status === "pending" && "Your review is awaiting moderation"}
-                  {b.review_status === "rejected" && "Your review wasn't published"}
-                </span>
-                <Link href={`/review/${b.review_token}`} className="btn-ghost btn-sm">Edit review</Link>
-              </div>
+            ) : (
+              <span className="faint" style={{ fontSize: 12.5 }}>{"★".repeat(b.review_rating)} You reviewed this session</span>
             )}
           </div>
         )}
