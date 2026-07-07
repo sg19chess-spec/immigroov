@@ -13,6 +13,13 @@ type Slot = { slot_start: string };
 const dateKey = (iso: string, tz: string) => new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(iso));
 const COUNTRIES: [string, string][] = [["US","United States"],["IN","India"],["GB","United Kingdom"],["BR","Brazil"],["NL","Netherlands"],["DE","Germany"],["CA","Canada"],["AU","Australia"],["AE","UAE"],["SG","Singapore"],["JP","Japan"],["ZA","South Africa"],["NG","Nigeria"],["PH","Philippines"],["ID","Indonesia"],["MX","Mexico"]];
 
+// Read fresh at submit time, not cached in state — the cookie can be set by an
+// affiliate-link click in another tab after this page already mounted.
+function readReferralSessionToken(): string | null {
+  const m = document.cookie.match(/(?:^|; )ig_ref=([^;]*)/);
+  return m ? decodeURIComponent(m[1]) : null;
+}
+
 let rzpScriptPromise: Promise<void> | null = null;
 function loadRazorpayScript(): Promise<void> {
   if (typeof window !== "undefined" && (window as unknown as { Razorpay?: unknown }).Razorpay) return Promise.resolve();
@@ -55,13 +62,19 @@ export default function MentorPage({ params }: { params: { id: string } }) {
   const [engaged, setEngagedS] = useState(true); // assume true until mount to avoid SSR flash
   const [payEnabled, setPayEnabled] = useState(false);
   const [referralCode, setReferralCode] = useState("");
-  const [referralSessionToken, setReferralSessionToken] = useState<string | null>(null);
+  const [referralCheck, setReferralCheck] = useState<{ valid: boolean; discount_pct: number } | null>(null);
 
   useEffect(() => { setMyEmail(getEmail()); }, []);
   useEffect(() => {
-    const m = document.cookie.match(/(?:^|; )ig_ref=([^;]*)/);
-    if (m) setReferralSessionToken(decodeURIComponent(m[1]));
-  }, []);
+    const code = referralCode.trim();
+    setReferralCheck(null); // re-check on every edit — a stale valid/invalid state must not linger
+    if (!code) return;
+    const t = setTimeout(async () => {
+      const { data } = await supabase.rpc("validate_referral_code", { p_code: code });
+      setReferralCheck((data as { valid: boolean; discount_pct: number }) ?? null);
+    }, 400);
+    return () => clearTimeout(t);
+  }, [referralCode, supabase]);
   useEffect(() => { (async () => { const { data } = await supabase.rpc("public_setting", { p_key: "payments_enabled" }); setPayEnabled(String(data) === "true"); })(); }, [supabase]);
   useEffect(() => {
     setEngagedS(isEngaged());
@@ -155,7 +168,7 @@ export default function MentorPage({ params }: { params: { id: string } }) {
       const { error } = await supabase.rpc("book_session_guest", {
         p_quote_id: (quote as { quote_id: string }).quote_id, p_mentor_id: mentorId, p_service_id: svcId,
         p_slot_time: slotTime, p_email: email, p_name: guest.name || null, p_timezone: tz, p_answers: ans,
-        p_referral_session_token: referralSessionToken, p_referral_code: referralCode.trim() || null,
+        p_referral_session_token: readReferralSessionToken(), p_referral_code: referralCode.trim() || null,
       });
       if (error) throw error;
     };
@@ -169,7 +182,7 @@ export default function MentorPage({ params }: { params: { id: string } }) {
     const { data: order, error: oErr } = await supabase.functions.invoke("razorpay-create-order", {
       body: {
         quote_id: (quote as { quote_id: string }).quote_id, mentor_id: mentorId, service_id: svcId, slot_time: slotTime, email, name: guest.name || null, timezone: tz, answers: ans,
-        referral_session_token: referralSessionToken, referral_code: referralCode.trim() || null,
+        referral_session_token: readReferralSessionToken(), referral_code: referralCode.trim() || null,
       },
     });
     if (oErr) throw new Error(oErr.message);
@@ -328,11 +341,17 @@ export default function MentorPage({ params }: { params: { id: string } }) {
                   <span>Standard</span><span style={{ textDecoration: "line-through" }}>≈ {money(svc.you0 || 0, mc)}</span>
                 </div>
               )}
+              {referralCheck?.valid && (
+                <div className="faint" style={{ fontSize: 12, display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                  <span>Before discount</span><span style={{ textDecoration: "line-through" }}>≈ {money(svc.you || 0, mc)}</span>
+                </div>
+              )}
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <span className="muted">{pppOn ? `Your price (${country})` : "Total"}</span>
-                <span className="price-big">≈ {money(svc.you || 0, mc)}</span>
+                <span className="price-big">≈ {money((svc.you || 0) * (referralCheck?.valid ? 1 - referralCheck.discount_pct / 100 : 1), mc)}</span>
               </div>
               {pppOn && <div className="faint" style={{ fontSize: 11.5, textAlign: "right", color: "var(--orange-d)" }}>Fair pricing applied · −{Math.round((1 - factor) * 100)}%</div>}
+              {referralCheck?.valid && <div className="faint" style={{ fontSize: 11.5, textAlign: "right", color: "var(--orange-d)" }}>Referral code {referralCode.trim().toUpperCase()} applied · −{referralCheck.discount_pct}%</div>}
 
               {slot && questions.length > 0 && (
                 <div style={{ marginTop: 16 }}>
@@ -357,6 +376,11 @@ export default function MentorPage({ params }: { params: { id: string } }) {
                 <div style={{ marginTop: 16, paddingTop: 14, borderTop: "1px solid var(--line)" }}>
                   <label className="fld">Referral code (optional)</label>
                   <input value={referralCode} onChange={(e) => setReferralCode(e.target.value)} placeholder="e.g. JOHN10" style={{ width: "100%", textTransform: "uppercase" }} />
+                  {referralCode.trim() && (
+                    referralCheck === null ? <div className="faint" style={{ fontSize: 12, marginTop: 6 }}>Checking code…</div>
+                    : referralCheck.valid ? <div style={{ fontSize: 12, marginTop: 6, color: "var(--ok)" }}>✓ Code {referralCode.trim().toUpperCase()} applied — {referralCheck.discount_pct}% off</div>
+                    : <div style={{ fontSize: 12, marginTop: 6, color: "var(--bad)" }}>This code isn&rsquo;t valid or has expired</div>
+                  )}
                 </div>
               )}
               <button className="btn-cta btn-lg" style={{ width: "100%", marginTop: 16 }} disabled={busy || !slot || (engaged && (reqMissing || (!myEmail && !guest.email.includes("@"))))} onClick={engaged ? book : openGroovia}>
