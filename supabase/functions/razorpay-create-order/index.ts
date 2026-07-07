@@ -11,17 +11,20 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
     const b = await req.json();
-    const { quote_id, mentor_id, service_id, slot_time, email, name, timezone, answers, target_country } = b;
+    const { quote_id, mentor_id, service_id, slot_time, email, name, timezone, answers, target_country, referral_session_token, referral_code } = b;
     if (!quote_id || !mentor_id || !service_id || !slot_time || !email) {
       return json({ error: "quote_id, mentor_id, service_id, slot_time, email are required" }, 400);
     }
     const admin = adminClient();
 
     // 1) Reserve — server-priced, slot held for 10 min, payment row 'initiated'.
+    //    A referral code (if valid) discounts the price here; Immigroov absorbs
+    //    it, the mentor's payout is unaffected (see reserve_booking).
     const { data: reserved, error: rErr } = await admin.rpc("reserve_booking", {
       p_quote_id: quote_id, p_mentor_id: mentor_id, p_service_id: service_id, p_slot_time: slot_time,
       p_email: email, p_name: name ?? null, p_timezone: timezone ?? "UTC",
       p_answers: answers ?? [], p_target_country: target_country ?? null,
+      p_referral_session_token: referral_session_token ?? null, p_referral_code: referral_code ?? null,
     });
     if (rErr) {
       // QUOTE_EXPIRED / slot-taken → client should re-quote and retry.

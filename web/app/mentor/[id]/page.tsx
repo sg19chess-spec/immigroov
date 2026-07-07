@@ -54,8 +54,14 @@ export default function MentorPage({ params }: { params: { id: string } }) {
   const [guest, setGuest] = useState({ name: "", email: "" });
   const [engaged, setEngagedS] = useState(true); // assume true until mount to avoid SSR flash
   const [payEnabled, setPayEnabled] = useState(false);
+  const [referralCode, setReferralCode] = useState("");
+  const [referralSessionToken, setReferralSessionToken] = useState<string | null>(null);
 
   useEffect(() => { setMyEmail(getEmail()); }, []);
+  useEffect(() => {
+    const m = document.cookie.match(/(?:^|; )ig_ref=([^;]*)/);
+    if (m) setReferralSessionToken(decodeURIComponent(m[1]));
+  }, []);
   useEffect(() => { (async () => { const { data } = await supabase.rpc("public_setting", { p_key: "payments_enabled" }); setPayEnabled(String(data) === "true"); })(); }, [supabase]);
   useEffect(() => {
     setEngagedS(isEngaged());
@@ -149,6 +155,7 @@ export default function MentorPage({ params }: { params: { id: string } }) {
       const { error } = await supabase.rpc("book_session_guest", {
         p_quote_id: (quote as { quote_id: string }).quote_id, p_mentor_id: mentorId, p_service_id: svcId,
         p_slot_time: slotTime, p_email: email, p_name: guest.name || null, p_timezone: tz, p_answers: ans,
+        p_referral_session_token: referralSessionToken, p_referral_code: referralCode.trim() || null,
       });
       if (error) throw error;
     };
@@ -160,7 +167,10 @@ export default function MentorPage({ params }: { params: { id: string } }) {
     const { data: quote, error: qErr } = await supabase.rpc("get_booking_quote", { p_service_id: svcId, p_customer_country: country });
     if (qErr) throw qErr;
     const { data: order, error: oErr } = await supabase.functions.invoke("razorpay-create-order", {
-      body: { quote_id: (quote as { quote_id: string }).quote_id, mentor_id: mentorId, service_id: svcId, slot_time: slotTime, email, name: guest.name || null, timezone: tz, answers: ans },
+      body: {
+        quote_id: (quote as { quote_id: string }).quote_id, mentor_id: mentorId, service_id: svcId, slot_time: slotTime, email, name: guest.name || null, timezone: tz, answers: ans,
+        referral_session_token: referralSessionToken, referral_code: referralCode.trim() || null,
+      },
     });
     if (oErr) throw new Error(oErr.message);
     if ((order as { error?: string })?.error) {
@@ -341,6 +351,12 @@ export default function MentorPage({ params }: { params: { id: string } }) {
                   <input value={guest.name} onChange={(e) => setGuest({ ...guest, name: e.target.value })} placeholder="Optional" style={{ width: "100%", marginBottom: 10 }} />
                   <label className="fld">Email — we'll send your confirmation here *</label>
                   <input type="email" value={guest.email} onChange={(e) => setGuest({ ...guest, email: e.target.value })} placeholder="you@email.com" style={{ width: "100%" }} />
+                </div>
+              )}
+              {slot && (
+                <div style={{ marginTop: 16, paddingTop: 14, borderTop: "1px solid var(--line)" }}>
+                  <label className="fld">Referral code (optional)</label>
+                  <input value={referralCode} onChange={(e) => setReferralCode(e.target.value)} placeholder="e.g. JOHN10" style={{ width: "100%", textTransform: "uppercase" }} />
                 </div>
               )}
               <button className="btn-cta btn-lg" style={{ width: "100%", marginTop: 16 }} disabled={busy || !slot || (engaged && (reqMissing || (!myEmail && !guest.email.includes("@"))))} onClick={engaged ? book : openGroovia}>
