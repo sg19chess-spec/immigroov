@@ -2,6 +2,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import AdminReferralManager from "@/components/AdminReferralManager";
+import AdminReviewQueue from "@/components/AdminReviewQueue";
 
 type Booking = {
   id: number; created_at: string; status: string; slot_time: string;
@@ -45,7 +46,7 @@ export default function AdminManager() {
   const [ledger, setLedger] = useState<Ledger[]>([]);
   const [payouts, setPayouts] = useState<Payout[]>([]);
   const [webinars, setWebinars] = useState<Webinar[]>([]);
-  const [view, setView] = useState<"activity" | "payouts" | "ledger" | "webinars" | "referrals">("activity");
+  const [view, setView] = useState<"activity" | "payouts" | "ledger" | "webinars" | "referrals" | "reviews">("activity");
   const [loading, setLoading] = useState(true);
   const [detail, setDetail] = useState<any | null>(null);
   const [detailId, setDetailId] = useState<number | null>(null);
@@ -155,6 +156,7 @@ export default function AdminManager() {
         <button className={view === "ledger" ? "on" : ""} onClick={() => setView("ledger")}>Ledger ({ledger.length})</button>
         <button className={view === "webinars" ? "on" : ""} onClick={() => setView("webinars")}>Webinars ({webinars.length})</button>
         <button className={view === "referrals" ? "on" : ""} onClick={() => setView("referrals")}>Referrals</button>
+        <button className={view === "reviews" ? "on" : ""} onClick={() => setView("reviews")}>Reviews</button>
       </div>
 
       {(view === "activity" || view === "payouts") && (
@@ -309,6 +311,7 @@ export default function AdminManager() {
       )}
 
       {view === "referrals" && <AdminReferralManager />}
+      {view === "reviews" && <AdminReviewQueue />}
 
       {regs && (
         <div onClick={() => setRegs(null)} style={{ position: "fixed", inset: 0, background: "rgba(10,34,64,.45)", zIndex: 1000, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "32px 16px", overflowY: "auto" }}>

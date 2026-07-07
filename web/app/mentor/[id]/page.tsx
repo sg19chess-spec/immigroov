@@ -63,6 +63,18 @@ export default function MentorPage({ params }: { params: { id: string } }) {
   const [payEnabled, setPayEnabled] = useState(false);
   const [referralCode, setReferralCode] = useState("");
   const [referralCheck, setReferralCheck] = useState<{ valid: boolean; discount_pct: number } | null>(null);
+  const [reviewsData, setReviewsData] = useState<{
+    breakdown: Record<"1" | "2" | "3" | "4" | "5", number>;
+    reviews: { rating: number; title: string | null; review: string | null; created_at: string; booking_slot_time: string; verified_session: boolean }[];
+  } | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase.rpc("mentor_reviews_public", { p_mentor_id: mentorId });
+      setReviewsData(data as typeof reviewsData);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mentorId, supabase]);
 
   useEffect(() => { setMyEmail(getEmail()); }, []);
   useEffect(() => {
@@ -391,6 +403,41 @@ export default function MentorPage({ params }: { params: { id: string } }) {
           )}
         </div>
       </div>
+
+      {reviewsData && reviewsData.reviews.length > 0 && (
+        <div style={{ marginTop: 26 }}>
+          <h2 className="sec" style={{ fontSize: 18, marginBottom: 14 }}>Reviews</h2>
+          <div className="card" style={{ marginBottom: 16, maxWidth: 320 }}>
+            {([5, 4, 3, 2, 1] as const).map((n) => {
+              const count = reviewsData.breakdown[String(n) as "1" | "2" | "3" | "4" | "5"] || 0;
+              const total = Object.values(reviewsData.breakdown).reduce((a, b) => a + b, 0) || 1;
+              const pct = Math.round((count / total) * 100);
+              return (
+                <div key={n} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, marginBottom: 4 }}>
+                  <span style={{ width: 46 }}>{"★".repeat(n)}{"☆".repeat(5 - n)}</span>
+                  <div style={{ flex: 1, height: 6, background: "var(--line)", borderRadius: 3, overflow: "hidden" }}>
+                    <div style={{ width: `${pct}%`, height: "100%", background: "var(--orange-d)" }} />
+                  </div>
+                  <span className="faint" style={{ width: 20, textAlign: "right" }}>{count}</span>
+                </div>
+              );
+            })}
+          </div>
+          <div style={{ display: "grid", gap: 14 }}>
+            {reviewsData.reviews.map((r, i) => (
+              <div className="card" key={i}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 6 }}>
+                  <span style={{ color: "var(--orange-d)" }}>{"★".repeat(r.rating)}{"☆".repeat(5 - r.rating)}</span>
+                  <span className="tag" style={{ background: "var(--orange-soft)", color: "var(--orange-d)", fontSize: 11 }}>Verified Session ✓</span>
+                </div>
+                {r.title && <div style={{ fontWeight: 700, marginTop: 8 }}>{r.title}</div>}
+                {r.review && <p className="muted" style={{ fontSize: 13.5, marginTop: 4 }}>{r.review}</p>}
+                <div className="faint" style={{ fontSize: 11.5, marginTop: 6 }}>Booked {new Date(r.booking_slot_time).toLocaleDateString()}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       </>)}
     </div>
   );
